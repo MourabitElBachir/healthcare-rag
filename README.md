@@ -80,8 +80,8 @@ instead (scores 0.61 and 0.60). Off-topic questions are refused:
 
 ## Web app (FastAPI + React)
 
-A single-page app (Vite + React 19 + TypeScript + Tailwind CSS v4, self-hosted Inter /
-Geist Mono fonts) served by a FastAPI backend that wraps the same pipeline. The
+A single-page app (Vite + React 19 + TypeScript + Tailwind CSS v4, self-hosted Atkinson
+Hyperlegible Next font) served by a FastAPI backend that wraps the same pipeline. The
 embedding model and the index are loaded once per process, so a question takes tens of
 milliseconds after start-up.
 
