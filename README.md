@@ -38,6 +38,38 @@ ces fichiers par des documents publics officiels vérifiés, puis réindexer ave
 ne certifie ni leur provenance, ni leur actualité. Il cite uniquement les
 passages du corpus local et refuse lorsque leur score est insuffisant.
 
+## Sources publiques officielles (FR)
+
+`data/public/` contient 4 documents officiels français récupérés le 2026-10-21
+(provenance, URL et conditions de réutilisation détaillées dans
+[`data/public/SOURCES.md`](data/public/SOURCES.md)) :
+
+- HAS & SFHTA : fiche mémo « Prise en charge de l'hypertension artérielle de l'adulte » (2016, PDF) ;
+- ANSM : dossier thématique « Le paracétamol » ;
+- Santé.fr : « Pourquoi, quand et comment bien se laver les mains ? » ;
+- Vaccination Info Service (Santé publique France) : « Grippe ».
+
+```bash
+HF_HUB_OFFLINE=1 python -m healthcare_rag ingest --data-dir data/public --reset
+HF_HUB_OFFLINE=1 python -m healthcare_rag ask "Combien de temps faut-il se laver les mains ?" -k 3
+```
+
+Chaque extrait affiche sa source, sa page, son fragment et son score de similarité
+cosinus. `SOURCES.md` et `README.md` ne sont pas indexés. **Pas un avis médical** :
+ces documents peuvent être datés ou mis à jour par leurs éditeurs ; consulter
+toujours la version en ligne et un professionnel de santé. Les données de
+`data/sample/` restent des données fictives de démonstration.
+
+## Official public sources (EN)
+
+`data/public/` holds 4 official French public-health documents retrieved on
+2026-10-21 (HAS/SFHTA hypertension memo, ANSM paracetamol page, Santé.fr hand
+washing page, Vaccination Info Service flu page). See `data/public/SOURCES.md`
+for titles, publishers, URLs and the reuse notes stated by each site. Answers
+show source, page, chunk and cosine similarity score. **Not medical advice**:
+documents may be outdated; always check the publisher's current version and a
+health professional. Check each publisher's reuse terms before publishing.
+
 ## EN
 
 A minimal local Python project for locating health document passages and quoting

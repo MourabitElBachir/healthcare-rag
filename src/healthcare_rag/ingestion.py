@@ -44,6 +44,9 @@ def chunk_text(text: str, source: str, page: int = 1,
     return chunks
 
 
+METADATA_FILES = {"SOURCES.MD", "README.MD"}  # provenance docs, not corpus
+
+
 def ingest_directory(data_dir: str | Path, chunk_size: int = 800,
                      overlap: int = 150) -> list[Chunk]:
     """Read supported files recursively; source is relative to the corpus root."""
@@ -52,7 +55,8 @@ def ingest_directory(data_dir: str | Path, chunk_size: int = 800,
         raise ValueError(f"Not a document directory: {root}")
     chunks = []
     for path in sorted(root.rglob("*")):
-        if path.is_file() and path.suffix.lower() in {".txt", ".md", ".pdf"}:
+        if (path.is_file() and path.suffix.lower() in {".txt", ".md", ".pdf"}
+                and path.name.upper() not in METADATA_FILES):
             for page, text in load_pages(path):
                 chunks.extend(chunk_text(text, path.relative_to(root).as_posix(),
                                          page, chunk_size, overlap))

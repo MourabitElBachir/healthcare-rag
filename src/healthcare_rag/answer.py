@@ -24,7 +24,7 @@ class ExtractiveAnswerer:
             return Answer("I cannot answer from the available source passages. "
                           "Je ne peux pas répondre à partir des sources disponibles.", [])
         text = "\n\n".join(
-            f"[{i}] {p.source} p.{p.page}, chunk {p.chunk_index}\n{p.text}"
+            f"[{i}] {p.source} p.{p.page}, chunk {p.chunk_index} (score {p.score:.2f})\n{p.text}"
             for i, p in enumerate(citations, 1))
         return Answer(text, citations)
 

@@ -80,3 +80,9 @@ def test_embedding_guard_and_stub(tmp_path):
         ChromaVectorStore(str(tmp_path), embedding_id="different")
     with pytest.raises(NotImplementedError):
         LLMAnswerer().answer("question", [])
+
+
+def test_sources_metadata_file_is_not_ingested(tmp_path):
+    (tmp_path / "SOURCES.md").write_text("provenance table", encoding="utf-8")
+    (tmp_path / "doc.txt").write_text("hand hygiene", encoding="utf-8")
+    assert {c.source for c in ingest_directory(tmp_path)} == {"doc.txt"}
