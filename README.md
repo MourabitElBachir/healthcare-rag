@@ -1,4 +1,6 @@
-# healthcare-rag
+# MedSource RAG (healthcare-rag)
+
+![MedSource RAG – dark mode](docs/v2_desktop_dark_answer.png)
 
 > **⚠️ Pas un avis médical / Not medical advice.** Projet de démonstration (portfolio).
 > Les réponses sont des extraits de documents publics, qui peuvent être datés.
@@ -43,7 +45,55 @@ Il faut se laver les mains à l’eau et au savon (de préférence liquide) ; pe
 Off-topic questions are refused:
 `I cannot answer from the available source passages. Je ne peux pas répondre à partir des sources disponibles.`
 
-## Demo (Streamlit)
+## Web app (FastAPI + React)
+
+A single-page app (Vite + React 19 + TypeScript + Tailwind CSS v4, self-hosted Inter /
+Geist Mono fonts) served by a FastAPI backend that wraps the same pipeline. The
+embedding model and the index are loaded once per process, so a question takes tens of
+milliseconds after start-up.
+
+```bash
+pip install -e ".[api]"
+cd frontend && npm ci && npm run build && cd ..
+uvicorn healthcare_rag.api:app --port 7860        # http://localhost:7860
+# frontend dev server with hot reload (proxies /api to :7860): cd frontend && npm run dev
+```
+
+API:
+
+| Endpoint | Description |
+| --- | --- |
+| `GET /api/health` | status, number of indexed chunks, embedding model |
+| `GET /api/sources` | the official documents (title, publisher, URL) |
+| `POST /api/ask` `{"question": "...", "k": 4}` | `refused`, bilingual refusal `message`, `citations[]` (rank, source, title, publisher, url, page, chunk_index, score, text), `took_ms` |
+
+UI features: chat layout, dark mode (default) and light mode, FR/EN labels, medical
+disclaimer banner, suggested questions, citation cards (score bar, page/fragment,
+expandable passage, copy, link to the official source), distinct refusal and error
+states, animated search state, sources/index side panel, mobile layout, keyboard and
+screen-reader support (landmarks, `aria-live`, visible focus).
+
+| Light mode (EN labels) | Off-topic refusal | Mobile |
+| --- | --- | --- |
+| ![Light](docs/v2_desktop_light_answer.png) | ![Refusal](docs/v2_desktop_dark_refusal.png) | ![Mobile](docs/v2_mobile_dark_answer.png) |
+
+Empty state: ![Home](docs/v2_desktop_dark_empty.png)
+
+### Docker / Hugging Face Spaces
+
+The `Dockerfile` builds the frontend, installs the API (CPU-only PyTorch), downloads the
+official sources from their URLs, embeds them at build time and serves everything on
+port **7860** as uid 1000 (Hugging Face Spaces conventions).
+
+```bash
+docker build -t medsource-rag .
+docker run -p 7860:7860 medsource-rag
+```
+
+For a Space, create a **Docker** Space and add this front matter to the Space's README:
+`sdk: docker` and `app_port: 7860`.
+
+## Streamlit demo (fallback)
 
 ```bash
 pip install -e ".[ui]"
@@ -120,7 +170,9 @@ ask -> embed question -> top-k retrieval -> relevance filter -> extractive answe
 | `answer.py` | `ExtractiveAnswerer` (default, no LLM, relevance filter) and `LLMAnswerer` interface (stub for a local LLM such as Ollama) |
 | `pipeline.py`, `cli.py` | `fetch`, `ingest`, `ask`, `eval` commands |
 | `evaluation.py` | hit@k / refusal-accuracy evaluation on a JSONL question set |
-| `app.py` | Streamlit demo UI |
+| `api.py` | FastAPI backend (`/api/ask`, `/api/health`, `/api/sources`) + static frontend |
+| `app.py` | Streamlit demo UI (fallback) |
+| `frontend/` | React + TypeScript + Tailwind single-page app |
 
 ### Relevance filter
 

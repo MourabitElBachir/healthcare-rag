@@ -156,3 +156,42 @@ def test_streamlit_app_answers_and_refuses(tmp_path, monkeypatch):
     at = AppTest.from_file(str(app_path), default_timeout=60).run()
     at.text_input[0].input("astronomy telescope").run()
     assert at.error and "Je ne peux pas" in at.error[0].value
+
+
+@pytest.fixture
+def api_client(tmp_path, monkeypatch):
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+    persist = str(tmp_path / "index")
+    build_index(SAMPLES, embedder="hashing", config=Config(persist_dir=persist))
+    monkeypatch.setenv("HEALTHCARE_RAG_PERSIST_DIR", persist)
+    monkeypatch.setenv("HEALTHCARE_RAG_EMBEDDER", "hashing")
+    monkeypatch.setenv("HEALTHCARE_RAG_MIN_SCORE", "0.0")
+    from healthcare_rag import api
+    api.get_components.cache_clear()
+    with TestClient(api.app) as client:
+        yield client, monkeypatch
+    api.get_components.cache_clear()
+
+
+def test_api_health_and_sources(api_client):
+    client, _ = api_client
+    health = client.get("/api/health").json()
+    assert health["status"] == "ok" and health["chunks"] > 3 and health["embedder"] == "hashing"
+    sources = client.get("/api/sources").json()
+    assert len(sources) == 4 and all(s["url"].startswith("https://") for s in sources)
+
+
+def test_api_ask_answers_and_refuses(api_client):
+    client, monkeypatch = api_client
+    body = client.post("/api/ask", json={"question": "hand hygiene soap water", "k": 3}).json()
+    assert not body["refused"] and body["k"] == 3
+    first = body["citations"][0]
+    assert first["source"] == "hand_hygiene.txt" and first["rank"] == 1
+    assert {"page", "chunk_index", "score", "text", "url"} <= first.keys()
+    monkeypatch.setenv("HEALTHCARE_RAG_MIN_SCORE", "0.99")
+    refused = client.post("/api/ask", json={"question": "astronomy telescope"}).json()
+    assert refused["refused"] and not refused["citations"]
+    assert "Je ne peux pas" in refused["message"]["fr"]
+    assert client.post("/api/ask", json={"question": ""}).status_code == 422
+    assert client.post("/api/ask", json={"question": "x", "k": 50}).status_code == 422

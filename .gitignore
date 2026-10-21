@@ -13,3 +13,7 @@ data/public/raw/
 # Local env / secrets
 .env
 *.env
+
+# Frontend build artifacts
+frontend/node_modules/
+frontend/dist/
