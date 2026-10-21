@@ -1,0 +1,14 @@
+SAMPLE DATA - illustrative only, not medical advice
+Paracétamol : information générale pour les adultes / Adult information
+
+Ce texte est un exemple destiné à tester un logiciel de recherche documentaire. Il ne constitue ni une notice de médicament ni une recommandation officielle. Il ne permet pas de déterminer si un médicament convient à une personne. Pour toute décision concernant un traitement, consulter un pharmacien ou un autre professionnel de santé et lire la notice du produit concerné.
+
+Paracetamol, also called acetaminophen in some countries, is an ingredient used in medicines for pain or fever. Products may have different strengths, formulations, and instructions. This illustrative document deliberately gives no dose, dosing interval, or personal treatment plan. Follow the product information and advice from a qualified professional who can consider the person's situation.
+
+Vérifier le nom des substances actives dans tous les médicaments utilisés. Certains produits contre le rhume ou la douleur peuvent contenir la même substance sous des présentations différentes. Ne pas supposer que deux noms commerciaux correspondent à deux substances distinctes. En cas de doute sur une association, demander conseil avant de prendre les produits ensemble.
+
+A pharmacist or clinician can review other medicines, existing conditions, allergies, and individual circumstances. People with questions about liver problems, alcohol use, pregnancy, or ongoing treatment should seek professional advice. An adult information sheet should not be used to decide how to give medicine to a child. Instructions can differ between people and between products.
+
+Si une prise excessive est suspectée, demander immédiatement une aide médicale ou contacter le service antipoison local, même en l'absence de symptômes. Garder l'emballage et les informations disponibles sur le produit pour les transmettre au professionnel. Ne pas attendre une réponse de ce logiciel pour décider de rechercher une aide urgente.
+
+Persistent, worsening, or unexplained symptoms require appropriate assessment. A document retrieval tool cannot examine a person, establish a diagnosis, or check all possible interactions. Its role in this project is to display what a selected document actually says, with an exact source reference. Before any real use, replace this example with current official public information and verify its jurisdiction, intended audience, and publication date.

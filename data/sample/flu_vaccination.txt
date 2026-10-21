@@ -1,0 +1,14 @@
+SAMPLE DATA - illustrative only, not medical advice
+Seasonal influenza vaccination / Vaccination contre la grippe saisonnière
+
+This is an illustrative public-health-style text for a software demonstration. It is not an official vaccination schedule. Seasonal influenza is a respiratory infection, and vaccination is one measure considered in public health prevention programmes. The recommendations that apply to a person depend on current national guidance and individual circumstances. Consult an official local source and a qualified professional for advice.
+
+Les campagnes de vaccination contre la grippe saisonnière suivent les recommandations des autorités compétentes. Les groupes concernés, les produits disponibles et les modalités pratiques peuvent varier selon le pays et la saison. Un document ancien ou provenant d'un autre pays ne doit pas être considéré automatiquement comme applicable à une situation actuelle.
+
+A healthcare professional can explain the purpose of vaccination, discuss expected benefits and possible adverse effects, and check whether a particular product is suitable. Relevant information includes previous reactions, medical history, and current circumstances. This sample does not identify an eligible age group, recommend a particular vaccine, or provide a personalised vaccination decision.
+
+Avant un rendez-vous, consulter les informations officielles de la campagne locale et préparer ses questions. Apporter les documents utiles selon les consignes du service. Signaler au professionnel les antécédents de réaction à un vaccin et les problèmes de santé pertinents. Si une information semble contradictoire, demander une clarification plutôt que de choisir une réponse isolée dans un moteur de recherche.
+
+Vaccination information should be read alongside other current advice about respiratory infections. Local guidance may address hand hygiene, ventilation, cough etiquette, or what to do when unwell. The appropriate actions depend on the setting and the person's needs. This document does not describe treatment for influenza or replace an assessment of symptoms.
+
+Dans cette démonstration, le système doit citer les passages retrouvés avec le nom du fichier, la page et le numéro du fragment. Une bonne similarité de recherche ne prouve pas qu'un passage répond à toute la question. Pour une utilisation réelle, sélectionner des publications publiques officielles, vérifier leur date et conserver les fichiers utilisés afin de pouvoir contrôler chaque citation.

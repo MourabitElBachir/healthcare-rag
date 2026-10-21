@@ -1,0 +1,14 @@
+SAMPLE DATA - illustrative only, not medical advice
+Hand hygiene / Hygiène des mains
+
+This illustrative document describes general principles for keeping hands clean in everyday settings. It is a demonstration corpus for a retrieval application, not an official publication or a substitute for current guidance from a public health authority. Recommendations for a particular workplace or healthcare setting should be checked with the responsible service.
+
+Hand hygiene helps reduce the transfer of material between hands, surfaces, and people. Washing with soap and water is a familiar approach. Wet the hands, apply soap, and rub the different surfaces carefully, including the backs of the hands, spaces between fingers, and fingertips. Rinse and dry with a clean method. Follow the instructions displayed in the setting and allow enough time to clean all surfaces thoroughly.
+
+Il est utile de penser à l'hygiène des mains avant de préparer ou de prendre un repas, après être allé aux toilettes et lorsque les mains sont visiblement sales. Après avoir toussé, éternué ou s'être mouché, suivre les consignes locales concernant le nettoyage des mains. Les adultes peuvent accompagner les enfants et leur montrer chaque étape avec des gestes simples.
+
+When an alcohol-based hand rub is appropriate, follow the product label and local guidance. Spread the product across all hand surfaces and allow the hands to dry. Keep these products away from flames and out of reach of young children. They are intended for external use. If hands are visibly dirty, seek the locally recommended washing method rather than assuming every product is suitable.
+
+Les gants ne dispensent pas de suivre les consignes d'hygiène des mains. Dans un établissement de soins, les procédures dépendent des activités, des contacts et du risque d'exposition. Demander au personnel compétent quelles procédures appliquer. Une personne présentant une irritation persistante peut demander conseil à un professionnel pour choisir des produits adaptés.
+
+For this software example, answers should reproduce the relevant passage and identify this file, its page, and its chunk. The presence of a citation does not establish that a document is authoritative. Replace this example with verified, dated public documents before using the system to explore real guidance.
