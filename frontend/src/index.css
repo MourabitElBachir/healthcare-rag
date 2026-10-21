@@ -1326,3 +1326,42 @@ html:not(.dark) .teal {
 html:not(.dark) .amber {
   color: #8a5a00;
 }
+
+/* Compact empty state on laptop-height screens: keep every suggested question
+   visible above the sticky composer (e.g. 1440x900). */
+@media (min-width: 761px) and (max-height: 1000px) {
+  .empty-main {
+    justify-content: flex-start;
+    padding: 22px 0 12px;
+  }
+  .hero-emblem {
+    width: 52px;
+    height: 52px;
+    border-radius: 17px;
+    margin-bottom: 16px;
+  }
+  .hero .eyebrow {
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-size: clamp(30px, 3vw, 42px);
+  }
+  .hero-description {
+    margin-top: 14px;
+  }
+  .feature-pills {
+    margin-top: 14px;
+  }
+  .suggestions {
+    margin-top: 26px;
+  }
+  .question-grid button {
+    min-height: 58px;
+    padding: 11px 14px;
+  }
+}
+@media (min-width: 761px) and (max-height: 820px) {
+  .hero-emblem {
+    display: none;
+  }
+}
