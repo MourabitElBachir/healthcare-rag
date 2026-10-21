@@ -1,6 +1,6 @@
 # MedSource RAG — single container for Hugging Face Spaces (Docker SDK, port 7860).
 # Stage 1: build the React frontend.
-FROM node:20-slim AS web
+FROM node:22-slim AS web
 WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
