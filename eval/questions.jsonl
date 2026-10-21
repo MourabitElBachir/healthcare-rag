@@ -1,0 +1,12 @@
+{"question": "Quelle est la dose maximale de paracétamol par prise chez l'adulte ?", "expected_source": "ansm_paracetamol.txt"}
+{"question": "Combien d'heures faut-il attendre entre deux prises de paracétamol ?", "expected_source": "ansm_paracetamol.txt"}
+{"question": "Quels sont les risques d'un surdosage en paracétamol ?", "expected_source": "ansm_paracetamol.txt"}
+{"question": "Pendant combien de temps faut-il se laver les mains ?", "expected_source": "santefr_lavage_des_mains.txt"}
+{"question": "Dans quelles situations faut-il se laver les mains ?", "expected_source": "santefr_lavage_des_mains.txt"}
+{"question": "Les femmes enceintes doivent-elles se faire vacciner contre la grippe ?", "expected_source": "vaccination_info_service_grippe.txt"}
+{"question": "Quels vaccins contre la grippe sont recommandés après 65 ans ?", "expected_source": "vaccination_info_service_grippe.txt"}
+{"question": "À partir de quelle valeur de pression artérielle parle-t-on d'hypertension ?", "expected_source": "has_sfhta_fiche_memo_hta_adulte_2016.pdf"}
+{"question": "Quelles mesures hygiéno-diététiques sont recommandées en cas d'hypertension ?", "expected_source": "has_sfhta_fiche_memo_hta_adulte_2016.pdf"}
+{"question": "Comment réaliser une automesure tensionnelle à domicile ?", "expected_source": "has_sfhta_fiche_memo_hta_adulte_2016.pdf"}
+{"question": "Quel est le meilleur club de football en France ?", "expected_source": null}
+{"question": "Comment réinitialiser le mot de passe de mon compte bancaire ?", "expected_source": null}

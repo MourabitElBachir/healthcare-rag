@@ -38,10 +38,23 @@ def build_index(data_dir: str | Path = "data/sample", *, reset: bool = False,
     return len(chunks)
 
 
+def load_components(embedder: str = "st", config: Config | None = None
+                    ) -> tuple[Embedder, ChromaVectorStore]:
+    """Create the embedder and store once; reuse them across questions (UI, eval)."""
+    return _components(config or Config.from_env(), embedder)
+
+
+def answer_question(question: str, encoder: Embedder, store: ChromaVectorStore, *,
+                    k: int | None = None, config: Config | None = None) -> Answer:
+    """Retrieve, filter and answer with already-loaded components."""
+    config = config or Config.from_env()
+    passages = Retriever(encoder, store).retrieve(question, config.top_k if k is None else k)
+    return ExtractiveAnswerer(config.min_score, config.score_margin).answer(question, passages)
+
+
 def ask(question: str, *, k: int | None = None, embedder: str = "st",
         config: Config | None = None) -> Answer:
     """Retrieve local evidence and return exact excerpts with citations."""
     config = config or Config.from_env()
     encoder, store = _components(config, embedder)
-    passages = Retriever(encoder, store).retrieve(question, config.top_k if k is None else k)
-    return ExtractiveAnswerer(config.min_score, config.score_margin).answer(question, passages)
+    return answer_question(question, encoder, store, k=k, config=config)

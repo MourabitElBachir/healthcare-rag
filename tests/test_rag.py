@@ -98,3 +98,61 @@ def test_relevance_filter_floor_and_margin():
     assert ExtractiveAnswerer(0.8, 0.08).select(passages) == []
     config = Config()
     assert (config.min_score, config.score_margin) == (0.6, 0.08)
+
+
+def test_eval_metrics_and_loader(tmp_path):
+    from healthcare_rag.evaluation import EvalItem, EvalResult, compute_metrics, load_items
+    results = [
+        EvalResult(EvalItem("q1", "a.txt"), ["a.txt", "b.txt"]),  # hit
+        EvalResult(EvalItem("q2", "a.txt"), ["b.txt"]),           # miss
+        EvalResult(EvalItem("q3", "c.pdf"), []),                  # false refusal
+        EvalResult(EvalItem("off1", None), []),                   # correct refusal
+        EvalResult(EvalItem("off2", None), ["a.txt"]),            # wrongly answered
+    ]
+    m = compute_metrics(results)
+    assert (m["hits"], m["answerable"], m["false_refusals"]) == (1, 3, 1)
+    assert abs(m["hit_at_k"] - 1 / 3) < 1e-9
+    assert (m["correct_refusals"], m["off_topic"], m["refusal_accuracy"]) == (1, 2, 0.5)
+    path = tmp_path / "q.jsonl"
+    path.write_text('{"question": "x", "expected_source": "a.txt"}\n\n'
+                    '{"question": "y", "expected_source": null}\n', encoding="utf-8")
+    assert load_items(path) == [EvalItem("x", "a.txt"), EvalItem("y", None)]
+
+
+def test_eval_end_to_end_with_hashing(tmp_path):
+    from healthcare_rag.evaluation import run_eval
+    config = Config(persist_dir=str(tmp_path / "index"), min_score=0.0)
+    build_index(SAMPLES, embedder="hashing", config=config)
+    path = tmp_path / "q.jsonl"
+    path.write_text('{"question": "hand hygiene soap", "expected_source": "hand_hygiene.txt"}\n',
+                    encoding="utf-8")
+    results, metrics = run_eval(path, embedder="hashing", config=config)
+    assert len(results) == 1 and metrics["hits"] == 1
+
+
+def test_clean_pdf_text():
+    from healthcare_rag.ingestion import clean_pdf_text
+    assert clean_pdf_text("Elles contr i-\nbuent à") == "Elles contribuent à"
+    assert clean_pdf_text("néces-\nsite") == "nécessite"
+    assert clean_pdf_text("hygiéno -diététiques") == "hygiéno-diététiques"
+    assert clean_pdf_text("IEC-\nARA2 et\nsuite") == "IEC-\nARA2 et\nsuite"
+
+
+def test_streamlit_app_answers_and_refuses(tmp_path, monkeypatch):
+    pytest.importorskip("streamlit")
+    from streamlit.testing.v1 import AppTest
+    config = Config(persist_dir=str(tmp_path / "index"))
+    build_index(SAMPLES, embedder="hashing", config=config)
+    monkeypatch.setenv("HEALTHCARE_RAG_PERSIST_DIR", config.persist_dir)
+    monkeypatch.setenv("HEALTHCARE_RAG_EMBEDDER", "hashing")
+    monkeypatch.setenv("HEALTHCARE_RAG_MIN_SCORE", "0.0")
+    app_path = Path(__file__).resolve().parents[1] / "src" / "healthcare_rag" / "app.py"
+    at = AppTest.from_file(str(app_path), default_timeout=60).run()
+    assert not at.exception
+    at.text_input[0].input("hand hygiene soap water").run()
+    assert not at.exception and at.success
+    assert any("hand_hygiene.txt" in m.value for m in at.markdown)
+    monkeypatch.setenv("HEALTHCARE_RAG_MIN_SCORE", "0.99")
+    at = AppTest.from_file(str(app_path), default_timeout=60).run()
+    at.text_input[0].input("astronomy telescope").run()
+    assert at.error and "Je ne peux pas" in at.error[0].value

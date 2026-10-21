@@ -16,7 +16,10 @@ def main() -> None:
     query = commands.add_parser("ask")
     query.add_argument("question")
     query.add_argument("-k", type=int, default=None)
-    for command in (ingest, query):
+    evaluate = commands.add_parser("eval", help="hit@k and refusal accuracy")
+    evaluate.add_argument("--file", default="eval/questions.jsonl")
+    evaluate.add_argument("-k", type=int, default=None)
+    for command in (ingest, query, evaluate):
         command.add_argument("--embedder", choices=["hashing", "st"],
                              default=argparse.SUPPRESS)
     args = parser.parse_args()
@@ -29,6 +32,18 @@ def main() -> None:
                 raise SystemExit(1)
         elif args.command == "ingest":
             print(f"Indexed {build_index(args.data_dir, reset=args.reset, embedder=args.embedder)} chunks.")
+        elif args.command == "eval":
+            from .evaluation import run_eval
+            results, metrics = run_eval(args.file, k=args.k, embedder=args.embedder)
+            for r in results:
+                status = "OK  " if r.correct else "MISS"
+                got = ", ".join(dict.fromkeys(r.cited_sources)) or "(refused)"
+                print(f"{status} {r.item.question}\n     expected: "
+                      f"{r.item.expected_source or '(refusal)'} | got: {got}")
+            print(f"\nhit@k: {metrics['hits']}/{metrics['answerable']} = {metrics['hit_at_k']:.2f}"
+                  f" | false refusals: {metrics['false_refusals']}"
+                  f" | refusal accuracy: {metrics['correct_refusals']}/{metrics['off_topic']}"
+                  f" = {metrics['refusal_accuracy']:.2f}")
         else:
             print(ask(args.question, k=args.k, embedder=args.embedder).text)
     except ValueError as exc:

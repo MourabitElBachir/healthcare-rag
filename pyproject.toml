@@ -13,6 +13,7 @@ dependencies = ["sentence-transformers", "chromadb", "pypdf", "trafilatura"]
 
 [project.optional-dependencies]
 dev = ["pytest"]
+ui = ["streamlit>=1.30"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

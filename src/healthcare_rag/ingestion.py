@@ -1,5 +1,6 @@
 """Read curated local documents and preserve exact page substrings."""
 from dataclasses import dataclass
+import re
 from hashlib import sha256
 from pathlib import Path
 from typing import Iterator
@@ -14,12 +15,31 @@ class Chunk:
     chunk_index: int
 
 
+_LOWER = "a-zà-ÿœæ"
+_SPLIT_SYLLABLE = re.compile(rf"(\w) ([{_LOWER}]{{1,2}})-\n[ \t]*([{_LOWER}])")
+_LINE_HYPHEN = re.compile(rf"([{_LOWER}])-\n[ \t]*([{_LOWER}])")
+_SPACE_HYPHEN = re.compile(r"(\w) -(\w)")
+
+
+def clean_pdf_text(text: str) -> str:
+    """Repair common PDF extraction artifacts of justified French text.
+
+    - "contr i-\nbuent" -> "contribuent" (stray space + end-of-line hyphenation)
+    - "néces-\nsite"    -> "nécessite"   (end-of-line hyphenation)
+    - "hygiéno -diététiques" -> "hygiéno-diététiques"
+    Mid-line splits such as "diurét ique" cannot be detected safely and are kept.
+    """
+    text = _SPLIT_SYLLABLE.sub(r"\1\2\3", text)
+    text = _LINE_HYPHEN.sub(r"\1\2", text)
+    return _SPACE_HYPHEN.sub(r"\1-\2", text)
+
+
 def load_pages(path: Path) -> Iterator[tuple[int, str]]:
     """Yield one-based pages; text files may contain form-feed separators."""
     if path.suffix.lower() == ".pdf":
         from pypdf import PdfReader
         for number, page in enumerate(PdfReader(str(path)).pages, 1):
-            yield number, page.extract_text() or ""
+            yield number, clean_pdf_text(page.extract_text() or "")
     elif path.suffix.lower() in {".txt", ".md"}:
         yield from enumerate(path.read_text(encoding="utf-8").split("\f"), 1)
 

@@ -21,6 +21,10 @@ python -m healthcare_rag ingest --data-dir data/public/raw --reset
 python -m healthcare_rag ask "Combien de temps faut-il se laver les mains ?" -k 4
 
 pytest                             # offline tests, no model download
+
+pip install -e ".[ui]"             # optional: Streamlit demo
+streamlit run src/healthcare_rag/app.py
+python -m healthcare_rag eval -k 4 # small retrieval evaluation (see below)
 ```
 
 The first `ingest`/`ask` downloads the free embedding model
@@ -38,6 +42,47 @@ Il faut se laver les mains à l’eau et au savon (de préférence liquide) ; pe
 
 Off-topic questions are refused:
 `I cannot answer from the available source passages. Je ne peux pas répondre à partir des sources disponibles.`
+
+## Demo (Streamlit)
+
+```bash
+pip install -e ".[ui]"
+streamlit run src/healthcare_rag/app.py      # http://localhost:8501  (?q=... pre-fills the question)
+```
+
+Question box, top-k slider, cited passages with source / page / chunk / score, refusal
+message, sidebar disclaimer and source list. The embedding model and the Chroma index are
+cached with `st.cache_resource`, so only the first question pays the model-loading cost.
+
+| Cited answer | Off-topic refusal |
+| --- | --- |
+| ![Cited answer](docs/screenshot_answer.png) | ![Refusal](docs/screenshot_refusal.png) |
+
+## Evaluation
+
+`eval/questions.jsonl` holds 12 French questions written from the 4 official documents:
+10 answerable (each with the expected source file) and 2 off-topic (expected refusal).
+
+```bash
+python -m healthcare_rag eval -k 4
+```
+
+- **hit@k** = share of answerable questions whose expected source is among the cited
+  passages (after the relevance filter).
+- **refusal accuracy** = share of off-topic questions that were refused.
+
+Result on 2026-10-21 (default model, `k=4`, `MIN_SCORE=0.6`, `SCORE_MARGIN=0.08`):
+
+| Metric | Value |
+| --- | --- |
+| hit@4 | **9/10 = 0.90** |
+| false refusals | 1 (« Comment réaliser une automesure tensionnelle à domicile ? ») |
+| refusal accuracy | **2/2 = 1.00** |
+
+The miss is a retrieval failure: the HAS section on home blood-pressure self-measurement
+was not in the top 4 (best score 0.47 < 0.6), so the system refused rather than citing a
+weak passage. This set is tiny and was written by the author; treat it as a smoke test,
+not a benchmark.
 
 ## FR – Le problème
 
@@ -73,7 +118,9 @@ ask -> embed question -> top-k retrieval -> relevance filter -> extractive answe
 | `vector_store.py` | Persistent local Chroma collection (cosine similarity) |
 | `retrieval.py` | Top-k nearest passages |
 | `answer.py` | `ExtractiveAnswerer` (default, no LLM, relevance filter) and `LLMAnswerer` interface (stub for a local LLM such as Ollama) |
-| `pipeline.py`, `cli.py` | `fetch`, `ingest`, `ask` commands |
+| `pipeline.py`, `cli.py` | `fetch`, `ingest`, `ask`, `eval` commands |
+| `evaluation.py` | hit@k / refusal-accuracy evaluation on a JSONL question set |
+| `app.py` | Streamlit demo UI |
 
 ### Relevance filter
 
@@ -114,7 +161,8 @@ settings or the embedder; `SOURCES.md`/`README.md` files are never indexed.
 ## Limits
 
 - Extractive only: the answer is the cited passages, not a synthesized sentence.
-- PDF text extraction can split some words (e.g. `diurét ique`).
+- PDF text is lightly cleaned (end-of-line hyphenation such as `néces-`/`site` is re-joined), but
+  some mid-line splits remain (e.g. `diurét ique`).
 - Sources can change or move online; `fetch` reports failures per document.
 - Citations prove traceability, not medical correctness.
 
