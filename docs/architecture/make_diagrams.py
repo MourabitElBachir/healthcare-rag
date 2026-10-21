@@ -173,8 +173,8 @@ def current() -> Svg:
                               "SentencePiece · mmap"], C["indigo"]),
            (582, "Chroma", ["persistent local index", "cosine · 384 dims",
                             "top-k nearest chunks"], C["violet"]),
-           (809, "Relevance filter", ["score ≥ 0.60 (floor)", "≥ best − 0.08 (margin)",
-                                      "else → refusal"], C["amber"]),
+           (809, "Relevance filter", ["score ≥ 0.55 (floor)", "≥ best − 0.08 (margin)",
+                                      "≤ 2 per source", "else → refusal"], C["amber"]),
            (1036, "Extractive answer", ["no LLM, no generation", "exact passages with",
                                         "source · page · score"], C["green"])]
     for x, t, lines, col in row:
@@ -182,11 +182,11 @@ def current() -> Svg:
 
     y2 = 580
     s.text(357, y2 - 14, "INGESTION · RUNS AT DOCKER BUILD", 12, C["amber"], 650, mono=True)
-    row2 = [(355, "fetch", ["4 official URLs", "PDF kept as-is", "HTML → main text"]),
+    row2 = [(355, "fetch", ["9 official URLs (EN+FR)", "PDF kept as-is", "HTML → main text"]),
             (582, "clean + chunk", ["PDF de-hyphenation", "800 chars · 150 overlap",
                                     "source / page / chunk id"]),
             (809, "embed", ["same ONNX model", "batches of 16", "L2-normalised"]),
-            (1036, "index", ["upsert into Chroma", "76 chunks today", "baked into the image"])]
+            (1036, "index", ["upsert into Chroma", "135 chunks today", "baked into the image"])]
     for x, t, lines in row2:
         s.box(x, y2, 200, 140, t, lines, C["amber"])
 
@@ -194,11 +194,13 @@ def current() -> Svg:
     s.box(1310, 160, 380, 124, "GitHub · master", ["MIT code · tests · eval set",
                                                    "push → Render auto-deploy (Blueprint)"],
           C["violet"], tag="CI/CD")
-    s.group(1310, 340, 380, 480, "OFFICIAL FRENCH SOURCES", C["amber"])
-    srcs = [("HAS · SFHTA", "hypertension memo (PDF)"), ("ANSM", "paracetamol (HTML)"),
-            ("Santé.fr", "hand washing (HTML)"), ("Vaccination Info Service", "flu vaccination (HTML)")]
-    for i, (t, sub) in enumerate(srcs):
-        s.box(1335, 372 + i * 108, 330, 90, t, [sub], C["amber"], title_size=15)
+    s.group(1310, 340, 380, 480, "OFFICIAL SOURCES · EN + FR", C["amber"])
+    srcs = [("CDC (U.S.)", ["hand washing · flu vaccine", "high blood pressure"], "EN"),
+            ("FDA (U.S.)", ["acetaminophen · 2 pages"], "EN"),
+            ("HAS · SFHTA · ANSM", ["hypertension memo (PDF)", "paracetamol"], "FR"),
+            ("Santé.fr · Vaccination Info", ["hand washing", "flu vaccination"], "FR")]
+    for i, (t, sub, lang) in enumerate(srcs):
+        s.box(1335, 372 + i * 108, 330, 90, t, sub, C["amber"], tag=lang, title_size=15)
 
     # request flow
     t, c = C["teal"], C["cyan"]
@@ -283,7 +285,7 @@ def target() -> Svg:
     s.group(40, 560, 1440, 330, "INGESTION · SCHEDULED (DATABRICKS WORKFLOWS OR AZURE FUNCTIONS)",
             C["amber"])
     ing = [(65, 230, "Scheduler", ["daily / weekly trigger", "Workflows or Functions", "timer"]),
-           (325, 250, "Crawler", ["HAS · ANSM · Santé.fr", "Santé publique France",
+           (325, 250, "Crawler", ["CDC · FDA · HAS · ANSM", "Santé.fr · Santé publique France",
                                   "sitemaps / RSS · robots.txt"]),
            (605, 250, "ADLS Gen2 / Blob", ["bronze: raw PDF / HTML", "silver: text + chunks",
                                            "versioned, licence kept"]),

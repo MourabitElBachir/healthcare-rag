@@ -36,16 +36,19 @@ def main() -> None:
             print(f"Indexed {build_index(args.data_dir, reset=args.reset, embedder=args.embedder)} chunks.")
         elif args.command == "eval":
             from .evaluation import run_eval
-            results, metrics = run_eval(args.file, k=args.k, embedder=args.embedder)
+            results, _ = run_eval(args.file, k=args.k, embedder=args.embedder)
             for r in results:
                 status = "OK  " if r.correct else "MISS"
                 got = ", ".join(dict.fromkeys(r.cited_sources)) or "(refused)"
-                print(f"{status} {r.item.question}\n     expected: "
-                      f"{r.item.expected_source or '(refusal)'} | got: {got}")
-            print(f"\nhit@k: {metrics['hits']}/{metrics['answerable']} = {metrics['hit_at_k']:.2f}"
-                  f" | false refusals: {metrics['false_refusals']}"
-                  f" | refusal accuracy: {metrics['correct_refusals']}/{metrics['off_topic']}"
-                  f" = {metrics['refusal_accuracy']:.2f}")
+                print(f"{status} [{r.item.lang}] {r.item.question}\n     expected: "
+                      f"{r.item.expected_label} | got: {got}")
+            from .evaluation import metrics_by_language
+            print()
+            for lang, m in metrics_by_language(results).items():
+                print(f"[{lang.upper():>3}] hit@k: {m['hits']}/{m['answerable']} = {m['hit_at_k']:.2f}"
+                      f" | false refusals: {m['false_refusals']}"
+                      + (f" | refusal accuracy: {m['correct_refusals']}/{m['off_topic']}"
+                         f" = {m['refusal_accuracy']:.2f}" if m['off_topic'] else ""))
         else:
             print(ask(args.question, k=args.k, embedder=args.embedder).text)
     except ValueError as exc:

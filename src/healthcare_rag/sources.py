@@ -13,7 +13,9 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
-USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) healthcare-rag/0.1 (+portfolio demo)"
+# An honest bot user agent: some publishers (e.g. cdc.gov) reject browser-like
+# user agents that do not behave like browsers.
+USER_AGENT = "healthcare-rag/0.2 (+https://github.com/MourabitElBachir/healthcare-rag; portfolio demo)"
 
 
 @dataclass(frozen=True)
@@ -23,6 +25,7 @@ class Source:
     publisher: str
     url: str
     kind: str  # "pdf" or "html"
+    lang: str = "fr"  # language of the document: "fr" or "en"
 
 
 SOURCES: tuple[Source, ...] = (
@@ -43,7 +46,32 @@ SOURCES: tuple[Source, ...] = (
     Source("vaccination_info_service_grippe.txt", "Grippe (Les maladies et leurs vaccins)",
            "Vaccination Info Service (Santé publique France)",
            "https://vaccination-info-service.fr/Les-maladies-et-leurs-vaccins/Grippe", "html"),
+    # English sources: U.S. federal agencies (public domain, see data/public/SOURCES.md).
+    Source("fda_acetaminophen.txt", "Acetaminophen (Safe Use of OTC Pain Relievers and Fever Reducers)",
+           "U.S. Food and Drug Administration (FDA)",
+           "https://www.fda.gov/drugs/safe-use-over-counter-pain-relievers-and-fever-reducers/"
+           "acetaminophen", "html", "en"),
+    Source("fda_dont_overuse_acetaminophen.txt", "Don't Overuse Acetaminophen (Consumer Update)",
+           "U.S. Food and Drug Administration (FDA)",
+           "https://www.fda.gov/consumers/consumer-updates/dont-overuse-acetaminophen", "html", "en"),
+    Source("cdc_handwashing.txt", "About Handwashing (Clean Hands)",
+           "U.S. Centers for Disease Control and Prevention (CDC)",
+           "https://www.cdc.gov/clean-hands/about/index.html", "html", "en"),
+    Source("cdc_flu_vaccine_key_facts.txt", "Key Facts About Seasonal Flu Vaccine",
+           "U.S. Centers for Disease Control and Prevention (CDC)",
+           "https://www.cdc.gov/flu/vaccines/keyfacts.html", "html", "en"),
+    Source("cdc_high_blood_pressure.txt", "About High Blood Pressure",
+           "U.S. Centers for Disease Control and Prevention (CDC)",
+           "https://www.cdc.gov/high-blood-pressure/about/index.html", "html", "en"),
 )
+
+SOURCE_BY_FILE = {s.filename: s for s in SOURCES}
+
+
+def source_language(filename: str) -> str | None:
+    """Language ("fr"/"en") of a registered source, by file name or path."""
+    source = SOURCE_BY_FILE.get(Path(filename).name)
+    return source.lang if source else None
 
 
 def _download(url: str, timeout: float = 60) -> tuple[bytes, str]:

@@ -10,6 +10,7 @@ export interface Source {
   publisher: string
   url: string
   kind: string
+  lang: 'fr' | 'en'
 }
 export interface Citation {
   rank: number
@@ -17,6 +18,7 @@ export interface Citation {
   title: string
   publisher: string
   url: string
+  lang: 'fr' | 'en' | null
   page: number
   chunk_index: number
   score: number
@@ -28,6 +30,7 @@ export interface Answer {
   message: { fr: string; en: string } | null
   citations: Citation[]
   k: number
+  source_lang: 'fr' | 'en' | null
   min_score: number
   score_margin: number
   took_ms: number
@@ -40,10 +43,10 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 export const api = {
   health: () => request<Health>('/api/health'),
   sources: () => request<Source[]>('/api/sources'),
-  ask: (question: string, k: number) =>
+  ask: (question: string, k: number, sourceLang: 'fr' | 'en' | null = null) =>
     request<Answer>('/api/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, k }),
+      body: JSON.stringify({ question, k, source_lang: sourceLang }),
     }),
 }

@@ -52,10 +52,30 @@ def load_components(embedder: str | None = None, config: Config | None = None
 
 
 def answer_question(question: str, encoder: Embedder, store: ChromaVectorStore, *,
-                    k: int | None = None, config: Config | None = None) -> Answer:
-    """Retrieve, filter and answer with already-loaded components."""
+                    k: int | None = None, config: Config | None = None,
+                    source_lang: str | None = None) -> Answer:
+    """Retrieve, filter and answer with already-loaded components.
+
+    ``source_lang`` ("fr"/"en") optionally restricts citations to sources in that language."""
     config = config or Config.from_env()
-    passages = Retriever(encoder, store).retrieve(question, config.top_k if k is None else k)
+    k = config.top_k if k is None else k
+    cap = config.max_per_source
+    if not source_lang and not cap:
+        passages = Retriever(encoder, store).retrieve(question, k)
+    else:
+        # Over-fetch, then apply the optional language filter and the per-source cap
+        # (at most `cap` passages from one document, so one long page cannot fill top-k).
+        from .sources import source_language
+        passages, per_source = [], {}
+        for p in Retriever(encoder, store).retrieve(question, k * 5):
+            if source_lang and source_language(p.source) != source_lang:
+                continue
+            if cap and per_source.get(p.source, 0) >= cap:
+                continue
+            per_source[p.source] = per_source.get(p.source, 0) + 1
+            passages.append(p)
+            if len(passages) == k:
+                break
     return ExtractiveAnswerer(config.min_score, config.score_margin).answer(question, passages)
 
 

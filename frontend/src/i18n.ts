@@ -12,11 +12,10 @@ export const copy = {
     title: 'Des réponses santé.',
     accent: 'Des sources, toujours.',
     description:
-      'Interrogez les publications de santé publique françaises. Retrouvez les passages exacts, avec leur contexte et leur source officielle.',
-    ask: 'Posez votre question en français…',
+      'Interrogez des publications officielles de santé publique, en français et en anglais (HAS, ANSM, Santé publique France, CDC, FDA). Retrouvez les passages exacts, avec leur source.',
+    ask: 'Posez votre question en français ou en anglais…',
     send: 'Envoyer la question',
     suggestions: 'Un point de départ',
-    french: 'Questions sur le corpus français',
     passages: 'passages cités',
     passage: 'passage cité',
     full: 'Afficher le passage complet',
@@ -58,6 +57,14 @@ export const copy = {
     empty: 'Aucun passage trouvé. Essayez une autre formulation.',
     skip: 'Aller au contenu',
     searchNote: 'DONNÉES PUBLIQUES. RECHERCHE LOCALE.',
+    fragment: 'fragment',
+    sourceFilter: 'Sources',
+    allSources: 'Toutes',
+    langNames: { fr: 'Français', en: 'Anglais' },
+    corpus: 'Corpus FR + EN · question dans l’une ou l’autre langue',
+    badge: 'RECHERCHE, PAS DE GÉNÉRATION',
+    endorsement:
+      'Les extraits CDC et FDA sont repris tels quels depuis cdc.gov et fda.gov, où ils sont disponibles gratuitement. Leur citation n’implique aucune approbation de ce projet par le gouvernement américain, le HHS, les CDC ou la FDA.',
   },
   en: {
     tagline: 'Health, at the source.',
@@ -71,11 +78,10 @@ export const copy = {
     title: 'Health questions.',
     accent: 'Grounded answers.',
     description:
-      'Explore French public-health publications. Find exact passages with their context and official source.',
-    ask: 'Ask a question in French…',
+      'Ask official public-health publications in English or French (CDC, FDA, HAS, ANSM, Santé publique France). Get the exact passages, with their official source.',
+    ask: 'Ask a health question in English or French…',
     send: 'Send question',
     suggestions: 'A place to start',
-    french: 'Questions for the French corpus',
     passages: 'cited passages',
     passage: 'cited passage',
     full: 'Show full passage',
@@ -117,12 +123,37 @@ export const copy = {
     empty: 'No passages found. Try rephrasing your question.',
     skip: 'Skip to content',
     searchNote: 'PUBLIC DATA. LOCAL SEARCH.',
+    fragment: 'chunk',
+    sourceFilter: 'Sources',
+    allSources: 'All',
+    langNames: { fr: 'French', en: 'English' },
+    corpus: 'EN + FR corpus · ask in either language',
+    badge: 'RETRIEVAL, NOT GENERATION',
+    endorsement:
+      'CDC and FDA excerpts are quoted unchanged from cdc.gov and fda.gov, where they are available at no charge. Quoting them does not imply endorsement of this project by the U.S. Government, HHS, CDC or FDA.',
   },
 }
 export type Labels = typeof copy.fr
-export const questions = [
-  'Quelle est la dose maximale de paracétamol par jour ?',
-  'Combien de temps faut-il se laver les mains ?',
-  'Qui doit se faire vacciner contre la grippe ?',
-  'Quelle est la cible tensionnelle à 6 mois ?',
-]
+/** Browser language decides the default UI language; English is the fallback. */
+export function browserLanguage(): Language {
+  const list = typeof navigator === 'undefined' ? [] : navigator.languages || [navigator.language]
+  for (const l of list) {
+    const code = (l || '').slice(0, 2).toLowerCase()
+    if (code === 'fr' || code === 'en') return code
+  }
+  return 'en'
+}
+export const questions: Record<Language, string[]> = {
+  en: [
+    'What is the maximum daily dose of acetaminophen for adults?',
+    'When should I use hand sanitizer instead of soap and water?',
+    'Who should get a flu vaccine every season?',
+    'Which blood pressure reading is stage 2 hypertension?',
+  ],
+  fr: [
+    'Quelle est la dose maximale de paracétamol par jour ?',
+    'Combien de temps faut-il se laver les mains ?',
+    'Qui doit se faire vacciner contre la grippe ?',
+    'Quelle est la cible tensionnelle à 6 mois ?',
+  ],
+}

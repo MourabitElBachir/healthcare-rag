@@ -97,7 +97,7 @@ def test_relevance_filter_floor_and_margin():
         "a.txt", "b.txt", "c.pdf"]
     assert ExtractiveAnswerer(0.8, 0.08).select(passages) == []
     config = Config()
-    assert (config.min_score, config.score_margin) == (0.6, 0.08)
+    assert (config.min_score, config.score_margin, config.max_per_source) == (0.55, 0.08, 2)
 
 
 def test_eval_metrics_and_loader(tmp_path):
@@ -179,7 +179,8 @@ def test_api_health_and_sources(api_client):
     health = client.get("/api/health").json()
     assert health["status"] == "ok" and health["chunks"] > 3 and health["embedder"] == "hashing"
     sources = client.get("/api/sources").json()
-    assert len(sources) == 4 and all(s["url"].startswith("https://") for s in sources)
+    assert len(sources) == 9 and all(s["url"].startswith("https://") for s in sources)
+    assert {s["lang"] for s in sources} == {"fr", "en"}
 
 
 def test_api_ask_answers_and_refuses(api_client):
@@ -188,7 +189,7 @@ def test_api_ask_answers_and_refuses(api_client):
     assert not body["refused"] and body["k"] == 3
     first = body["citations"][0]
     assert first["source"] == "hand_hygiene.txt" and first["rank"] == 1
-    assert {"page", "chunk_index", "score", "text", "url"} <= first.keys()
+    assert {"page", "chunk_index", "score", "text", "url", "lang"} <= first.keys()
     monkeypatch.setenv("HEALTHCARE_RAG_MIN_SCORE", "0.99")
     refused = client.post("/api/ask", json={"question": "astronomy telescope"}).json()
     assert refused["refused"] and not refused["citations"]
@@ -220,3 +221,66 @@ def test_onnx_xlmr_token_ids_match_reference():
         pytest.skip("ONNX model not cached")
     # Reference ids produced by the Hugging Face XLM-R fast tokenizer for this model.
     assert embedder.token_ids("Bonjour") == [0, 84602, 2]
+
+
+def test_source_registry_languages():
+    from healthcare_rag.sources import SOURCES, source_language
+    assert len({s.filename for s in SOURCES}) == len(SOURCES)
+    assert {s.lang for s in SOURCES} == {"fr", "en"}
+    assert sum(s.lang == "en" for s in SOURCES) >= 4
+    assert source_language("data/public/raw/cdc_handwashing.txt") == "en"
+    assert source_language("ansm_paracetamol.txt") == "fr"
+    assert source_language("unknown.txt") is None
+
+
+def _store_with(tmp_path, docs):
+    encoder, store = HashingEmbedder(), ChromaVectorStore(str(tmp_path / "idx"))
+    chunks = []
+    for src, texts in docs.items():
+        for i, t in enumerate(texts):
+            c = chunk_text(t, src, i + 1, 800, 0)[0]
+            chunks.append(c)
+    store.upsert(chunks, encoder.embed([c.text for c in chunks]))
+    return encoder, store
+
+
+def test_per_source_cap_and_language_filter(tmp_path):
+    from healthcare_rag.pipeline import answer_question
+    encoder, store = _store_with(tmp_path, {
+        "cdc_handwashing.txt": ["wash hands soap water"] * 4,
+        "santefr_lavage_des_mains.txt": ["wash hands soap water now", "wash hands soap"],
+    })
+    config = Config(min_score=0.0, score_margin=1.0)
+    capped = answer_question("wash hands soap water", encoder, store, k=4, config=config)
+    sources = [p.source for p in capped.citations]
+    assert sources.count("cdc_handwashing.txt") == 2 and len(sources) == 4
+    uncapped = answer_question("wash hands soap water", encoder, store, k=4,
+                               config=Config(min_score=0.0, score_margin=1.0, max_per_source=0))
+    assert [p.source for p in uncapped.citations].count("cdc_handwashing.txt") == 4
+    french = answer_question("wash hands soap water", encoder, store, k=4, config=config,
+                             source_lang="fr")
+    assert {p.source for p in french.citations} == {"santefr_lavage_des_mains.txt"}
+
+
+def test_eval_languages_and_cross_lingual(tmp_path):
+    from healthcare_rag.evaluation import (EvalItem, EvalResult, load_items,
+                                           metrics_by_language)
+    path = tmp_path / "q.jsonl"
+    path.write_text('{"question": "x", "expected_source": ["a.txt", "b.txt"], "lang": "en"}\n',
+                    encoding="utf-8")
+    item = load_items(path)[0]
+    assert item.expected == ("a.txt", "b.txt") and item.lang == "en"
+    assert EvalResult(item, ["b.txt"]).correct
+    cross = EvalItem("dose ?", "fda_acetaminophen.txt", "fr")
+    assert cross.cross_lingual and not EvalItem("dose?", "fda_acetaminophen.txt", "en").cross_lingual
+    m = metrics_by_language([EvalResult(cross, ["fda_acetaminophen.txt"]),
+                             EvalResult(EvalItem("off", None, "en"), [])])
+    assert m["fr"]["hits"] == 1 and m["cross-lingual"]["hits"] == 1
+    assert m["en"]["correct_refusals"] == 1 and m["all"]["answerable"] == 1
+
+
+def test_api_source_language_filter(api_client):
+    client, _ = api_client
+    body = client.post("/api/ask", json={"question": "hand hygiene", "source_lang": "en"}).json()
+    assert body["source_lang"] == "en" and body["refused"]  # sample files are not registered
+    assert client.post("/api/ask", json={"question": "x", "source_lang": "de"}).status_code == 422

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
-import { ArrowUp, Plus, SlidersHorizontal } from 'lucide-react'
-import type { Labels } from '../i18n'
+import { ArrowUp, Languages, Plus, SlidersHorizontal } from 'lucide-react'
+import type { Labels, Language } from '../i18n'
 export function Composer({
   t,
   loading,
@@ -8,6 +8,8 @@ export function Composer({
   reset,
   k,
   setK,
+  sourceLang,
+  setSourceLang,
 }: {
   t: Labels
   loading: boolean
@@ -15,6 +17,8 @@ export function Composer({
   reset: () => void
   k: number
   setK: (k: number) => void
+  sourceLang: Language | null
+  setSourceLang: (lang: Language | null) => void
 }) {
   const [text, setText] = useState('')
   const input = useRef<HTMLTextAreaElement>(null)
@@ -70,6 +74,21 @@ export function Composer({
                   {i + 1}
                 </option>
               ))}
+            </select>
+          </label>
+          <label className="k-select">
+            <Languages size={13} />
+            {t.sourceFilter}
+            <select
+              value={sourceLang ?? 'all'}
+              disabled={loading}
+              onChange={(e) =>
+                setSourceLang(e.target.value === 'all' ? null : (e.target.value as Language))
+              }
+            >
+              <option value="all">{t.allSources}</option>
+              <option value="en">EN · {t.langNames.en}</option>
+              <option value="fr">FR · {t.langNames.fr}</option>
             </select>
           </label>
           <button

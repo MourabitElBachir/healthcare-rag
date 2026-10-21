@@ -29,14 +29,15 @@ with st.sidebar:
     st.warning("**Pas un avis médical / Not medical advice.**\n\n"
                "Démo portfolio : les réponses sont des extraits de documents publics "
                "officiels, qui peuvent être datés. Consultez un professionnel de santé.")
-    st.subheader("Sources officielles")
+    st.subheader("Sources officielles / Official sources")
     for source in SOURCES:
-        st.markdown(f"- [{source.title}]({source.url})  \n  _{source.publisher}_")
+        st.markdown(f"- `{source.lang.upper()}` [{source.title}]({source.url})  \n  _{source.publisher}_")
     st.caption(f"Filtre : score ≥ {config.min_score} et ≥ meilleur − {config.score_margin}")
 
 st.title("🩺 healthcare-rag")
-st.caption("Réponses uniquement à partir de sources officielles, avec citation exacte "
-           "(fichier, page, score). Recherche locale, sans LLM, sans API payante.")
+st.caption("Answers only from official EN/FR public-health sources, with exact citations "
+           "(file, page, score). Local search, no LLM, no paid API. / Réponses uniquement à "
+           "partir de sources officielles, avec citation exacte.")
 
 question = st.text_input("Votre question", value=st.query_params.get("q", ""),
                          placeholder="Combien de temps faut-il se laver les mains ?")

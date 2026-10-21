@@ -21,7 +21,7 @@ class ExtractiveAnswerer:
     AND >= ``best_score - score_margin`` (relative margin to the top passage).
     """
 
-    def __init__(self, min_score: float = 0.6, score_margin: float = 0.08):
+    def __init__(self, min_score: float = 0.55, score_margin: float = 0.08):
         self.min_score = min_score
         self.score_margin = score_margin
 

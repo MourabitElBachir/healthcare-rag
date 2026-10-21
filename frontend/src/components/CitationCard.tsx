@@ -19,7 +19,7 @@ export function CitationCard({
   async function copyText() {
     try {
       await navigator.clipboard.writeText(
-        `${c.title || c.source} — ${c.publisher}\np. ${c.page} · fragment ${c.chunk_index}\n“${c.text}”\n${c.url}`,
+        `${c.title || c.source} — ${c.publisher}\np. ${c.page} · ${t.fragment} ${c.chunk_index}\n“${c.text}”\n${c.url}`,
       )
       setCopied(true)
       setError(false)
@@ -51,7 +51,12 @@ export function CitationCard({
         </span>
       </div>
       <p className="citation-meta mono">
-        p. {c.page} · fragment {c.chunk_index}
+        {c.lang && (
+          <span className="lang-badge" title={t.langNames[c.lang]}>
+            {c.lang.toUpperCase()}
+          </span>
+        )}
+        p. {c.page} · {t.fragment} {c.chunk_index}
       </p>
       <blockquote className={expanded ? '' : 'clamped'}>{displayText(c.text)}</blockquote>
       <button
@@ -87,7 +92,7 @@ export function CitationCard({
  *  instead of altering the cited text. */
 function displayText(text: string): string {
   const trimmed = text.trim()
-  const startsMidSentence = /^[a-zà-ÿœæ,;:)]/.test(trimmed)
+  const startsMidSentence = /^[a-z0-9à-ÿœæ,;:)]/.test(trimmed)
   const endsMidSentence = !/[.!?…»)\]]$/.test(trimmed)
   return `${startsMidSentence ? '… ' : ''}${trimmed}${endsMidSentence ? ' …' : ''}`
 }

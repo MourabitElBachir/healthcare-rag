@@ -1,7 +1,10 @@
 """Tiny retrieval evaluation: hit@k on answerable questions, refusal accuracy otherwise.
 
-Each line of the JSONL file is {"question": str, "expected_source": str | null}.
+Each line of the JSONL file is
+{"question": str, "expected_source": str | null, "lang": "fr" | "en" (optional, default "fr")}.
+``expected_source`` may also be a list (any of them counts as a hit).
 ``expected_source: null`` means the system should refuse (off-topic question).
+``lang`` is the language of the question; metrics are also reported per language.
 """
 from __future__ import annotations
 
@@ -16,7 +19,27 @@ from .pipeline import answer_question, load_components
 @dataclass(frozen=True)
 class EvalItem:
     question: str
-    expected_source: str | None
+    expected_source: str | tuple[str, ...] | None
+    lang: str = "fr"
+
+    @property
+    def expected(self) -> tuple[str, ...]:
+        if self.expected_source is None:
+            return ()
+        if isinstance(self.expected_source, str):
+            return (self.expected_source,)
+        return tuple(self.expected_source)
+
+    @property
+    def expected_label(self) -> str:
+        return " or ".join(self.expected) or "(refusal)"
+
+    @property
+    def cross_lingual(self) -> bool:
+        """True when no expected source is in the question's language."""
+        from .sources import source_language
+        langs = {source_language(s) for s in self.expected}
+        return bool(langs) and self.lang not in langs
 
 
 @dataclass(frozen=True)
@@ -32,7 +55,7 @@ class EvalResult:
     def correct(self) -> bool:
         if self.item.expected_source is None:
             return self.refused
-        return self.item.expected_source in self.cited_sources
+        return any(s in self.cited_sources for s in self.item.expected)
 
 
 def load_items(path: str | Path) -> list[EvalItem]:
@@ -40,7 +63,11 @@ def load_items(path: str | Path) -> list[EvalItem]:
     for line in Path(path).read_text(encoding="utf-8").splitlines():
         if line.strip():
             row = json.loads(line)
-            items.append(EvalItem(row["question"], row.get("expected_source")))
+            expected = row.get("expected_source")
+            if isinstance(expected, list):
+                expected = tuple(expected)
+            items.append(EvalItem(row["question"], expected,
+                                  row.get("lang", "fr")))
     return items
 
 
@@ -59,6 +86,18 @@ def compute_metrics(results: list[EvalResult]) -> dict[str, float | int]:
         "refusal_accuracy": refusals / len(off_topic) if off_topic else 0.0,
         "false_refusals": sum(r.refused for r in answerable),
     }
+
+
+def metrics_by_language(results: list[EvalResult]) -> dict[str, dict]:
+    """compute_metrics for each question language, plus "all"."""
+    langs = sorted({r.item.lang for r in results})
+    out = {lang: compute_metrics([r for r in results if r.item.lang == lang])
+           for lang in langs}
+    cross = [r for r in results if r.item.cross_lingual]
+    if cross:
+        out["cross-lingual"] = compute_metrics(cross)
+    out["all"] = compute_metrics(results)
+    return out
 
 
 def run_eval(path: str | Path, *, k: int | None = None, embedder: str | None = None,

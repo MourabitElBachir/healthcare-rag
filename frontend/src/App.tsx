@@ -17,7 +17,7 @@ import {
 import { MotionConfig } from 'motion/react'
 import { api } from './api'
 import type { Answer, Health, Source } from './api'
-import { copy, questions } from './i18n'
+import { browserLanguage, copy, questions } from './i18n'
 import type { Language } from './i18n'
 import { CitationCard } from './components/CitationCard'
 import { Composer } from './components/Composer'
@@ -26,6 +26,7 @@ interface Turn {
   id: number
   question: string
   k: number
+  sourceLang: Language | null
   answer?: Answer
   error?: boolean
 }
@@ -37,9 +38,10 @@ function saved(key: string, fallback: string) {
   }
 }
 export default function App() {
-  const [lang, setLang] = useState<Language>(() =>
-      saved('medsource-language', 'fr') === 'en' ? 'en' : 'fr',
-    ),
+  const [lang, setLang] = useState<Language>(() => {
+      const stored = saved('medsource-language', '')
+      return stored === 'fr' || stored === 'en' ? stored : browserLanguage()
+    }),
     [dark, setDark] = useState(() => saved('medsource-theme', 'dark') !== 'light')
   const [notice, setNotice] = useState(true),
     [panel, setPanel] = useState(() => window.innerWidth >= 1100),
@@ -50,7 +52,8 @@ export default function App() {
     [indexLoading, setIndexLoading] = useState(true),
     [turns, setTurns] = useState<Turn[]>([]),
     [loading, setLoading] = useState(false),
-    [k, setK] = useState(4)
+    [k, setK] = useState(4),
+    [sourceLang, setSourceLang] = useState<Language | null>(null)
   const nextId = useRef(0)
   const busy = useRef(false),
     end = useRef<HTMLDivElement>(null),
@@ -114,18 +117,18 @@ export default function App() {
       document.removeEventListener('keydown', key)
     }
   }, [panel])
-  async function ask(question: string, requestedK = k, retryId?: number) {
+  async function ask(question: string, requestedK = k, retryId?: number, filter = sourceLang) {
     if (busy.current || !question.trim()) return
     busy.current = true
     setLoading(true)
     const id = retryId ?? ++nextId.current
     setTurns((prev) =>
       retryId
-        ? prev.map((x) => (x.id === id ? { id, question, k: requestedK } : x))
-        : [...prev, { id, question, k: requestedK }],
+        ? prev.map((x) => (x.id === id ? { id, question, k: requestedK, sourceLang: filter } : x))
+        : [...prev, { id, question, k: requestedK, sourceLang: filter }],
     )
     try {
-      const answer = await api.ask(question, requestedK)
+      const answer = await api.ask(question, requestedK, filter)
       setTurns((prev) => prev.map((x) => (x.id === id ? { ...x, answer } : x)))
     } catch {
       setTurns((prev) => prev.map((x) => (x.id === id ? { ...x, error: true } : x)))
@@ -159,7 +162,7 @@ export default function App() {
           </div>
           <div className="header-actions">
             <span className="header-badge">
-              <span className="status-dot" /> RETRIEVAL, NOT GENERATION
+              <span className="status-dot" /> {t.badge}
             </span>
             <div className="language-toggle" aria-label="Language">
               {(['fr', 'en'] as const).map((l) => (
@@ -240,11 +243,12 @@ export default function App() {
                     <div className="suggestions-heading">
                       <h2>{t.suggestions}</h2>
                       <span>
-                        {t.french} <span className="tiny-fr">FR</span>
+                        {t.corpus} <span className="tiny-fr">EN</span>
+                        <span className="tiny-fr">FR</span>
                       </span>
                     </div>
                     <div className="question-grid">
-                      {questions.map((q, i) => {
+                      {questions[lang].map((q, i) => {
                         const Icon = [HeartPulse, Sparkles, ShieldCheck, Activity][i]!
                         return (
                           <button key={q} onClick={() => void ask(q)} disabled={loading}>
@@ -261,7 +265,7 @@ export default function App() {
                   <div className="trust-line">
                     <span />
                     <BookOpen size={13} />
-                    ANSM · Santé publique France · HAS
+                    CDC · FDA · HAS · ANSM · Santé publique France
                     <span />
                   </div>
                 </>
@@ -288,7 +292,9 @@ export default function App() {
                             <button
                               className="text-button"
                               disabled={loading}
-                              onClick={() => void ask(turn.question, turn.k, turn.id)}
+                              onClick={() =>
+                                void ask(turn.question, turn.k, turn.id, turn.sourceLang)
+                              }
                             >
                               {t.retry}
                             </button>
@@ -359,6 +365,8 @@ export default function App() {
               reset={() => setTurns([])}
               k={k}
               setK={setK}
+              sourceLang={sourceLang}
+              setSourceLang={setSourceLang}
             />
           </div>
           <button
@@ -370,6 +378,7 @@ export default function App() {
           <div id="source-drawer" ref={drawer} className="source-drawer" inert={!panel}>
             <SourcePanel
               t={t}
+              lang={lang}
               sources={sources}
               health={health}
               failed={healthFailed}
@@ -377,7 +386,7 @@ export default function App() {
               loading={indexLoading}
               refresh={() => void refresh()}
               close={closePanel}
-              minimum={latest?.min_score ?? 0.6}
+              minimum={latest?.min_score ?? 0.55}
               margin={latest?.score_margin ?? 0.08}
             />
           </div>

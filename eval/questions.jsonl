@@ -1,12 +1,25 @@
-{"question": "Quelle est la dose maximale de paracétamol par prise chez l'adulte ?", "expected_source": "ansm_paracetamol.txt"}
-{"question": "Combien d'heures faut-il attendre entre deux prises de paracétamol ?", "expected_source": "ansm_paracetamol.txt"}
-{"question": "Quels sont les risques d'un surdosage en paracétamol ?", "expected_source": "ansm_paracetamol.txt"}
-{"question": "Pendant combien de temps faut-il se laver les mains ?", "expected_source": "santefr_lavage_des_mains.txt"}
-{"question": "Dans quelles situations faut-il se laver les mains ?", "expected_source": "santefr_lavage_des_mains.txt"}
-{"question": "Les femmes enceintes doivent-elles se faire vacciner contre la grippe ?", "expected_source": "vaccination_info_service_grippe.txt"}
-{"question": "Quels vaccins contre la grippe sont recommandés après 65 ans ?", "expected_source": "vaccination_info_service_grippe.txt"}
-{"question": "À partir de quelle valeur de pression artérielle parle-t-on d'hypertension ?", "expected_source": "has_sfhta_fiche_memo_hta_adulte_2016.pdf"}
-{"question": "Quelles mesures hygiéno-diététiques sont recommandées en cas d'hypertension ?", "expected_source": "has_sfhta_fiche_memo_hta_adulte_2016.pdf"}
-{"question": "Comment réaliser une automesure tensionnelle à domicile ?", "expected_source": "has_sfhta_fiche_memo_hta_adulte_2016.pdf"}
-{"question": "Quel est le meilleur club de football en France ?", "expected_source": null}
-{"question": "Comment réinitialiser le mot de passe de mon compte bancaire ?", "expected_source": null}
+{"question": "Quelle est la dose maximale de paracétamol par prise chez l'adulte ?", "expected_source": "ansm_paracetamol.txt", "lang": "fr"}
+{"question": "Combien d'heures faut-il attendre entre deux prises de paracétamol ?", "expected_source": "ansm_paracetamol.txt", "lang": "fr"}
+{"question": "Quels sont les risques d'un surdosage en paracétamol ?", "expected_source": "ansm_paracetamol.txt", "lang": "fr"}
+{"question": "Pendant combien de temps faut-il se laver les mains ?", "expected_source": "santefr_lavage_des_mains.txt", "lang": "fr"}
+{"question": "Dans quelles situations faut-il se laver les mains ?", "expected_source": "santefr_lavage_des_mains.txt", "lang": "fr"}
+{"question": "Les femmes enceintes doivent-elles se faire vacciner contre la grippe ?", "expected_source": "vaccination_info_service_grippe.txt", "lang": "fr"}
+{"question": "Quels vaccins contre la grippe sont recommandés après 65 ans ?", "expected_source": "vaccination_info_service_grippe.txt", "lang": "fr"}
+{"question": "À partir de quelle valeur de pression artérielle parle-t-on d'hypertension ?", "expected_source": "has_sfhta_fiche_memo_hta_adulte_2016.pdf", "lang": "fr"}
+{"question": "Quelles mesures hygiéno-diététiques sont recommandées en cas d'hypertension ?", "expected_source": "has_sfhta_fiche_memo_hta_adulte_2016.pdf", "lang": "fr"}
+{"question": "Comment réaliser une automesure tensionnelle à domicile ?", "expected_source": "has_sfhta_fiche_memo_hta_adulte_2016.pdf", "lang": "fr"}
+{"question": "Quel est le meilleur club de football en France ?", "expected_source": null, "lang": "fr"}
+{"question": "Comment réinitialiser le mot de passe de mon compte bancaire ?", "expected_source": null, "lang": "fr"}
+{"question": "Quelles abréviations de l'acétaminophène peuvent figurer sur une étiquette d'ordonnance aux États-Unis ?", "expected_source": "fda_acetaminophen.txt", "lang": "fr"}
+{"question": "Les vaccins contre la grippe utilisés aux États-Unis sont-ils trivalents ?", "expected_source": "cdc_flu_vaccine_key_facts.txt", "lang": "fr"}
+{"question": "What is the maximum daily dose of acetaminophen for adults?", "expected_source": ["fda_acetaminophen.txt", "fda_dont_overuse_acetaminophen.txt"], "lang": "en"}
+{"question": "What are the symptoms of an acetaminophen overdose?", "expected_source": "fda_dont_overuse_acetaminophen.txt", "lang": "en"}
+{"question": "How long should I scrub my hands when washing them?", "expected_source": "cdc_handwashing.txt", "lang": "en"}
+{"question": "When should I use hand sanitizer instead of soap and water?", "expected_source": "cdc_handwashing.txt", "lang": "en"}
+{"question": "Who should get a flu vaccine every season?", "expected_source": "cdc_flu_vaccine_key_facts.txt", "lang": "en"}
+{"question": "Which blood pressure reading is stage 2 hypertension?", "expected_source": "cdc_high_blood_pressure.txt", "lang": "en"}
+{"question": "What lifestyle changes help lower high blood pressure?", "expected_source": "cdc_high_blood_pressure.txt", "lang": "en"}
+{"question": "What is the blood pressure target after six months of treatment?", "expected_source": "has_sfhta_fiche_memo_hta_adulte_2016.pdf", "lang": "en"}
+{"question": "How many hours should I wait between two doses of paracetamol?", "expected_source": "ansm_paracetamol.txt", "lang": "en"}
+{"question": "Who won the last football World Cup?", "expected_source": null, "lang": "en"}
+{"question": "What is the best smartphone to buy this year?", "expected_source": null, "lang": "en"}

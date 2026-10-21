@@ -1,8 +1,9 @@
 import { ArrowUpRight, BookOpen, Database, RotateCw, X } from 'lucide-react'
 import type { Health, Source } from '../api'
-import type { Labels } from '../i18n'
+import type { Labels, Language } from '../i18n'
 export function SourcePanel({
   t,
+  lang,
   sources,
   health,
   failed,
@@ -14,6 +15,7 @@ export function SourcePanel({
   margin,
 }: {
   t: Labels
+  lang: Language
   sources: Source[]
   health: Health | null
   failed: boolean
@@ -40,23 +42,30 @@ export function SourcePanel({
         <span className="mono">{String(sources.length).padStart(2, '0')}</span>
       </div>
       <div className="source-list">
-        {sources.map((s, i) => (
-          <a
-            key={s.filename}
-            className="source-item"
-            href={s.url}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <span className="source-number mono">0{i + 1}</span>
-            <div>
-              <h3>{s.title || s.filename}</h3>
-              <p>{s.publisher}</p>
-              <span className="source-kind mono">{s.kind.toUpperCase()} · FR</span>
-            </div>
-            <ArrowUpRight size={15} />
-          </a>
-        ))}
+        {[...sources]
+          .sort((a, b) => Number(b.lang === lang) - Number(a.lang === lang))
+          .map((s, i) => (
+            <a
+              key={s.filename}
+              className="source-item"
+              href={s.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span className="source-number mono">{String(i + 1).padStart(2, '0')}</span>
+              <div>
+                <h3>{s.title || s.filename}</h3>
+                <p>{s.publisher}</p>
+                <span className="source-kind mono">
+                  {s.kind.toUpperCase()} ·{' '}
+                  <span className="lang-badge" title={t.langNames[s.lang]}>
+                    {s.lang.toUpperCase()}
+                  </span>
+                </span>
+              </div>
+              <ArrowUpRight size={15} />
+            </a>
+          ))}
         {sourceFailed && <p className="small muted">{t.sourceError}</p>}
         {loading && !sources.length && <div className="source-skeleton skeleton" />}
       </div>
@@ -97,6 +106,7 @@ export function SourcePanel({
           <span className="mono">{margin.toFixed(2)}</span>
         </div>
       </div>
+      <p className="endorsement small muted">{t.endorsement}</p>
       <div className="source-bottom">
         <span className="status-dot" />
         {t.searchNote}

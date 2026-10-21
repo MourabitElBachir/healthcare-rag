@@ -13,6 +13,7 @@ import time
 from contextlib import asynccontextmanager
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
@@ -22,10 +23,9 @@ from pydantic import BaseModel, Field
 from .config import Config
 from .embeddings import Embedder, default_embedder
 from .pipeline import answer_question, build_index, load_components
-from .sources import SOURCES
+from .sources import SOURCE_BY_FILE, SOURCES
 from .vector_store import ChromaVectorStore
 
-SOURCE_BY_FILE = {s.filename: s for s in SOURCES}
 REFUSAL = {"fr": "Je ne peux pas répondre à partir des sources disponibles.",
            "en": "I cannot answer from the available source passages."}
 
@@ -58,6 +58,8 @@ app = FastAPI(title="MedSource RAG API", version="0.2.0", lifespan=lifespan)
 class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=500)
     k: int | None = Field(default=None, ge=1, le=10)
+    source_lang: Literal["fr", "en"] | None = Field(
+        default=None, description="Only cite sources in this language (default: all)")
 
 
 class Citation(BaseModel):
@@ -66,6 +68,7 @@ class Citation(BaseModel):
     title: str | None
     publisher: str | None
     url: str | None
+    lang: str | None
     page: int
     chunk_index: int
     score: float
@@ -78,6 +81,7 @@ class AskResponse(BaseModel):
     message: dict[str, str] | None
     citations: list[Citation]
     k: int
+    source_lang: str | None
     min_score: float
     score_margin: float
     took_ms: int
@@ -94,7 +98,7 @@ def health() -> dict:
 @app.get("/api/sources")
 def sources() -> list[dict]:
     return [{"filename": s.filename, "title": s.title, "publisher": s.publisher,
-             "url": s.url, "kind": s.kind} for s in SOURCES]
+             "url": s.url, "kind": s.kind, "lang": s.lang} for s in SOURCES]
 
 
 @app.post("/api/ask", response_model=AskResponse)
@@ -105,7 +109,8 @@ def ask(request: AskRequest) -> AskResponse:
     k = request.k or config.top_k
     start = time.perf_counter()
     encoder, store = get_components()
-    answer = answer_question(request.question, encoder, store, k=k, config=config)
+    answer = answer_question(request.question, encoder, store, k=k, config=config,
+                             source_lang=request.source_lang)
     citations = []
     for rank, p in enumerate(answer.citations, 1):
         meta = SOURCE_BY_FILE.get(Path(p.source).name)
@@ -113,10 +118,11 @@ def ask(request: AskRequest) -> AskResponse:
             rank=rank, source=p.source, page=p.page, chunk_index=p.chunk_index,
             score=round(p.score, 4), text=p.text,
             title=meta.title if meta else None, publisher=meta.publisher if meta else None,
-            url=meta.url if meta else None))
+            url=meta.url if meta else None, lang=meta.lang if meta else None))
     return AskResponse(
         question=request.question, refused=not citations,
         message=None if citations else REFUSAL, citations=citations, k=k,
+        source_lang=request.source_lang,
         min_score=config.min_score, score_margin=config.score_margin,
         took_ms=round((time.perf_counter() - start) * 1000))
 

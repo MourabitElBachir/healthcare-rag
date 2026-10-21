@@ -1,17 +1,28 @@
 # MedSource RAG (healthcare-rag)
 
-**🔗 Live demo / Démo en ligne : <https://medsource-rag.onrender.com>** · free Render instance, the first request after idle can take about a minute (cold start) · [Architecture](#architecture-current--actuelle) · [Azure target design](#scaling-to-production-on-azure-target-design--not-deployed)
+**🔗 Live demo: <https://medsource-rag.onrender.com>** (free Render instance; the first request after idle can take about a minute) · [Architecture](#architecture-current) · [Azure target design](#scaling-to-production-on-azure-target-design--not-deployed) · [Français](#en-bref-français)
 
-![MedSource RAG – dark mode](docs/v2_desktop_dark_answer.png)
+![MedSource RAG – English UI, dark mode](docs/v3_en_desktop_dark_answer.png)
 
-> **⚠️ Pas un avis médical / Not medical advice.** Projet de démonstration (portfolio).
-> Les réponses sont des extraits de documents publics, qui peuvent être datés.
-> Consultez toujours un professionnel de santé. / Demo project: answers are excerpts
-> of public documents that may be outdated. Always consult a health professional.
+> **⚠️ Not medical advice.** Demo / portfolio project: answers are excerpts of public
+> documents that may be outdated. Always consult a health professional.
+> *Pas un avis médical : projet de démonstration ; consultez toujours un professionnel de santé.*
 
-Local, zero-cost **RAG (Retrieval-Augmented Generation)** pipeline that answers health
-questions **only** from official public documents and cites the exact source passage
-(file, page, chunk, similarity score). No LLM by default, no API keys, no paid API: it runs on a laptop or on Render's free plan.
+**MedSource RAG** is a zero-cost **RAG (Retrieval-Augmented Generation)** pipeline that answers
+health questions **only** from official public-health documents, and cites the exact source
+passage (document, page, chunk, similarity score). The corpus is bilingual: **U.S. federal
+sources in English (CDC, FDA)** and **French public sources (HAS, ANSM, Santé.fr, Santé
+publique France)**. A multilingual embedding model lets you ask in English or French and
+retrieve passages in either language (cross-lingual search). No LLM by default, no API keys,
+no paid API: it runs on a laptop or on Render's free plan.
+
+### En bref (français)
+
+MedSource RAG répond aux questions de santé **uniquement** à partir de documents officiels
+(CDC, FDA en anglais ; HAS, ANSM, Santé.fr, Santé publique France en français) et cite le
+passage exact. Vous pouvez poser la question en français ou en anglais : le modèle
+d'embeddings multilingue retrouve les passages dans les deux langues. L'interface suit la
+langue du navigateur (anglais par défaut) et propose un bouton FR/EN.
 
 ## Quickstart
 
@@ -22,6 +33,7 @@ pip install -e ".[dev]"            # or: pip install -r requirements.txt && pip 
 
 python -m healthcare_rag fetch     # download official sources into data/public/raw/ (git-ignored)
 python -m healthcare_rag ingest --data-dir data/public/raw --reset
+python -m healthcare_rag ask "What is the maximum daily dose of acetaminophen for adults?" -k 4
 python -m healthcare_rag ask "Combien de temps faut-il se laver les mains ?" -k 4
 
 pytest                             # offline tests, no model download
@@ -42,7 +54,7 @@ Fully offline demo without any model: add `--embedder hashing` to both `ingest` 
 | `--embedder` / `HEALTHCARE_RAG_EMBEDDER` | Install | Notes |
 | --- | --- | --- |
 | `onnx` (default) | base install | onnxruntime + SentencePiece, fp32 ONNX weights memory-mapped (external data). Same vectors as sentence-transformers (cosine 1.000000 on our checks), API peak RAM ≈ 300 MB |
-| `onnx` + `HEALTHCARE_RAG_ONNX_VARIANT=int8` | base install | int8 export, lower RAM, slightly lower quality (hit@4 8/10 instead of 9/10 with the default thresholds) |
+| `onnx` + `HEALTHCARE_RAG_ONNX_VARIANT=int8` | base install | int8 export, lower RAM, slightly lower quality (hit@4 8/10 instead of 9/10 on the earlier French-only question set; not re-measured on the bilingual set) |
 | `st` | `pip install -e ".[st]"` | sentence-transformers + PyTorch (reference implementation, much heavier install and RAM) |
 | `hashing` | base install | deterministic lexical baseline used by the tests |
 
@@ -53,15 +65,17 @@ lines and questions tested, ~95 MB); and the ONNX weights are converted once to 
 data so onnxruntime memory-maps them and only the embedding rows actually used are paged
 in. Switching backend requires `ingest --reset`.
 
-Example output:
+Example output (an English question answered from a French source: cross-lingual retrieval):
 
-```text
+```console
+$ python -m healthcare_rag ask "How long should I wash my hands?"
 [1] santefr_lavage_des_mains.txt p.1, chunk 3 (score 0.87)
 Comment se laver les mains efficacement ?
 Il faut se laver les mains à l’eau et au savon (de préférence liquide) ; pendant 30 secondes, ...
 ```
 
-Off-topic questions are refused:
+With `source_lang="en"` (API) or **Sources: EN** (UI), the same question cites the CDC page
+instead (scores 0.61 and 0.60). Off-topic questions are refused:
 `I cannot answer from the available source passages. Je ne peux pas répondre à partir des sources disponibles.`
 
 ## Web app (FastAPI + React)
@@ -83,20 +97,24 @@ API:
 | Endpoint | Description |
 | --- | --- |
 | `GET /api/health` | status, number of indexed chunks, embedding model |
-| `GET /api/sources` | the official documents (title, publisher, URL) |
-| `POST /api/ask` `{"question": "...", "k": 4}` | `refused`, bilingual refusal `message`, `citations[]` (rank, source, title, publisher, url, page, chunk_index, score, text), `took_ms` |
+| `GET /api/sources` | the official documents (title, publisher, URL, `lang`) |
+| `POST /api/ask` `{"question": "...", "k": 4, "source_lang": null}` | `refused`, refusal `message` in `en` and `fr`, `citations[]` (rank, source, title, publisher, url, `lang`, page, chunk_index, score, text), `took_ms`. Optional `source_lang`: `"en"` or `"fr"` to cite only sources in that language |
 
-UI features: chat layout, dark mode (default) and light mode, FR/EN labels, medical
+UI features: **English-first**: the UI language follows the browser (`fr*` → French,
+anything else → English) and an FR/EN toggle remembers the choice. Labels are complete in both
+languages; there are suggested questions in each language, a refusal message per language, an
+**EN/FR language badge** on every citation and source, and a cheap **source-language filter**
+(All / EN / FR). Also: chat layout, dark mode (default) and light mode, medical
 disclaimer banner, suggested questions, citation cards (score bar, page/fragment,
 expandable passage, copy, link to the official source), distinct refusal and error
 states, animated search state, sources/index side panel, mobile layout, keyboard and
 screen-reader support (landmarks, `aria-live`, visible focus).
 
-| Light mode (EN labels) | Off-topic refusal | Mobile |
+| EN question → French source (cross-lingual) | Light mode | Mobile |
 | --- | --- | --- |
-| ![Light](docs/v2_desktop_light_answer.png) | ![Refusal](docs/v2_desktop_dark_refusal.png) | ![Mobile](docs/v2_mobile_dark_answer.png) |
+| ![Cross-lingual](docs/v3_en_desktop_dark_crosslingual.png) | ![Light](docs/v2_desktop_light_answer.png) | ![Mobile](docs/v2_mobile_dark_answer.png) |
 
-Empty state: ![Home](docs/v2_desktop_dark_empty.png)
+Light-mode, mobile and refusal screenshots (`docs/v2_*`, `docs/v2_desktop_dark_refusal.png`) predate the English sources.
 
 ### Deploy for free on Render (Docker)
 
@@ -105,8 +123,8 @@ frontend, then `python:3.12-slim` installs the API, downloads the official sourc
 their URLs, prepares the ONNX model and embeds the corpus **at build time**, and serves
 everything with uvicorn on `$PORT` (Render injects it; default **10000**), as uid 1000.
 
-Measured locally with the same steps (no Docker): API peak RAM ≈ **300 MB** after model
-load and queries (fits the 512 MB free instance), ~5–20 ms per question locally (≈0.2 s round-trip on Render when warm).
+Measured locally with the same steps (no Docker), with the bilingual 135-chunk index: API
+peak RAM (VmHWM) **≈ 295 MiB** after model load and 210 queries (fits the 512 MB free instance), ~5–20 ms per question locally (≈0.2 s round-trip on Render when warm).
 
 1. Fork/push this repository to GitHub.
 2. On [Render](https://render.com): **New → Blueprint**, select the repository; it reads
@@ -139,8 +157,11 @@ cached with `st.cache_resource`, so only the first question pays the model-loadi
 
 ## Evaluation
 
-`eval/questions.jsonl` holds 12 French questions written from the 4 official documents:
-10 answerable (each with the expected source file) and 2 off-topic (expected refusal).
+`eval/questions.jsonl` holds 25 questions written by the author from the 9 official
+documents: 14 in French and 11 in English. 21 are answerable (each with its expected source
+file, or a list of acceptable files) and 4 are off-topic (expected refusal: 2 FR, 2 EN).
+4 questions are **cross-lingual**: an English question whose only expected source is French
+(2), and a French question whose only expected source is English (2).
 
 ```bash
 python -m healthcare_rag eval -k 4
@@ -150,38 +171,53 @@ python -m healthcare_rag eval -k 4
   passages (after the relevance filter).
 - **refusal accuracy** = share of off-topic questions that were refused.
 
-Result on 2026-10-21 (default model, `k=4`, `MIN_SCORE=0.6`, `SCORE_MARGIN=0.08`):
+Result on 2026-10-21 (default ONNX model, `k=4`, `MIN_SCORE=0.55`, `SCORE_MARGIN=0.08`,
+`MAX_PER_SOURCE=2`, 135 chunks):
 
-| Metric | Value |
-| --- | --- |
-| hit@4 | **9/10 = 0.90** |
-| false refusals | 1 (« Comment réaliser une automesure tensionnelle à domicile ? ») |
-| refusal accuracy | **2/2 = 1.00** |
+| Questions | hit@4 | False refusals | Refusal accuracy |
+| --- | --- | --- | --- |
+| English | **8/9 = 0.89** | 0 | **2/2** |
+| French | **11/12 = 0.92** | 1 | **2/2** |
+| Cross-lingual (subset) | 4/4 | 0 | – |
+| **Overall** | **19/21 = 0.90** | 1 | **4/4 = 1.00** |
 
-The miss is a retrieval failure: the HAS section on home blood-pressure self-measurement
-was not in the top 4 (best score 0.47 < 0.6), so the system refused rather than citing a
-weak passage. This set is tiny and was written by the author; treat it as a smoke test,
-not a benchmark.
+The two misses:
 
-## FR – Le problème
+- *"How long should I scrub my hands when washing them?"* cites the French Santé.fr page
+  (score 0.86), which does answer it (30 s), but not the expected CDC page (20 s; best CDC chunk 0.63,
+  outside the 0.08 margin). Use the EN source filter to get the CDC passage.
+- *« Comment réaliser une automesure tensionnelle à domicile ? »*: the HAS section on home
+  self-measurement is not retrieved (best score 0.47), so the system refuses rather than cite a
+  weak passage. This was already the miss before the English sources were added.
 
-Les soignants et les patients perdent du temps à chercher une information fiable dans
-des documents de santé longs (recommandations HAS, pages ANSM, etc.). Un chatbot
-généraliste peut inventer des réponses, ce qui est dangereux en santé. Ce projet répond
-uniquement à partir d'un corpus de sources officielles et cite le passage exact, pour que
-chaque réponse soit vérifiable.
+**Thresholds were retuned when the English sources were added.** With the previous defaults
+(`MIN_SCORE=0.6`, no per-source cap) the same set gave EN 6/9, FR 10/12, overall 16/21,
+refusals 4/4. Correct English passages often scored 0.58–0.59, and one long CDC page could
+fill the whole top 4 and push out the French answer. Lowering the floor to 0.55 and allowing
+at most 2 passages per document fixed both. Diagnostic off-topic probes (not in the eval
+file) scored ≤ 0.38, and uncovered health questions (ibuprofen, sprain, sunburn) scored ≤ 0.44,
+so there is still a gap below 0.55. The thresholds were tuned on this same small set, so the
+numbers are optimistic: treat it as a smoke test, not a benchmark.
 
 ## EN – The problem
 
 Finding reliable information in long official health documents is slow, and general
 chatbots can hallucinate. This project only answers from a curated corpus of official
-sources and always cites the exact passage, so every answer can be checked.
+sources (English and French) and always cites the exact passage, so every answer can be
+checked.
 
-## Architecture (current / actuelle)
+## FR – Le problème
 
-> **FR –** Ce qui tourne réellement aujourd'hui : un seul conteneur Docker sur Render (offre
-> gratuite), sans API payante. **EN –** What is actually deployed today: one Docker container
-> on Render's free plan, no paid API.
+Les soignants et les patients perdent du temps à chercher une information fiable dans
+des documents de santé longs (recommandations HAS, pages ANSM, CDC, FDA, etc.). Un chatbot
+généraliste peut inventer des réponses, ce qui est dangereux en santé. Ce projet répond
+uniquement à partir d'un corpus de sources officielles et cite le passage exact, pour que
+chaque réponse soit vérifiable.
+
+## Architecture (current)
+
+> What is actually deployed today: one Docker container on Render's free plan, no paid API.
+> *Ce qui tourne réellement aujourd'hui : un seul conteneur Docker sur Render (offre gratuite).*
 
 ![Current architecture – MedSource RAG on Render](docs/architecture/current-architecture.png)
 
@@ -196,13 +232,13 @@ flowchart LR
   subgraph Render["Render free · Docker container"]
     API[FastAPI + uvicorn<br/>serves SPA + /api]
     subgraph Q["Query pipeline (per request)"]
-      E[ONNX embedder<br/>multilingual MiniLM] --> C[(Chroma<br/>cosine)] --> F{Relevance filter<br/>≥ 0.60 and ≥ best − 0.08} --> X[Extractive answer<br/>+ citations]
+      E[ONNX embedder<br/>multilingual MiniLM] --> C[(Chroma<br/>cosine)] --> F{Relevance filter<br/>≥ 0.55 and ≥ best − 0.08<br/>max 2 per source} --> X[Extractive answer<br/>+ citations]
     end
     subgraph I["Ingestion (docker build)"]
       FE[fetch] --> CC[clean + chunk] --> EM[embed] --> IX[index]
     end
   end
-  S[(HAS · ANSM · Santé.fr ·<br/>Vaccination Info Service)] -->|A · HTTPS| FE
+  S[(EN: CDC · FDA<br/>FR: HAS · ANSM · Santé.fr ·<br/>Vaccination Info Service)] -->|A · HTTPS| FE
   IX -.->|same index at runtime| C
   B -->|1 · GET /| API
   SPA <-->|2 · POST /api/ask ⇄ cited JSON| API
@@ -211,23 +247,23 @@ flowchart LR
   GH[GitHub master] -.->|push → auto-deploy| Render
 ```
 
-### Request flow / Parcours d'une question
+### Request flow
 
 1. The browser loads `GET /`; FastAPI serves the built React SPA (static files).
-2. The SPA sends `POST /api/ask` with the question and gets cited JSON back.
+2. The SPA sends `POST /api/ask` with the question (and an optional `source_lang` filter) and gets cited JSON back.
 3. The question is embedded locally (ONNX Runtime, multilingual MiniLM-L12, 384 dims, no torch).
-4. Chroma returns the top-k nearest chunks (cosine similarity).
-5. The relevance filter keeps passages with score ≥ `MIN_SCORE` (0.60) **and** ≥ best − `SCORE_MARGIN` (0.08); otherwise the system refuses.
+4. Chroma returns the nearest chunks (cosine similarity). They are over-fetched, then at most `MAX_PER_SOURCE` (2) chunks are kept per document, plus the optional language filter, down to top-k.
+5. The relevance filter keeps passages with score ≥ `MIN_SCORE` (0.55) **and** ≥ best − `SCORE_MARGIN` (0.08); otherwise the system refuses.
 6. The extractive answerer returns the exact passages with source, page and score. There is no LLM and no text generation.
 
-The model and the index are loaded once per process. Measured: about 300 MB peak RAM (the free instance has 512 MB) and a warm answer in about 0.2 s round-trip from a client.
+The model and the index are loaded once per process. Measured: about 295 MiB peak RAM with the 135-chunk bilingual index (the free instance has 512 MB) and a warm answer in about 0.2 s round-trip from a client.
 
-### Ingestion flow / Ingestion des sources
+### Ingestion flow
 
-- **A. fetch:** download the 4 official URLs (HAS, ANSM, Santé.fr, Vaccination Info Service). PDFs are kept as-is; for HTML, only the main text is extracted.
+- **A. fetch:** download the 9 official URLs: 5 English (CDC ×3, FDA ×2) and 4 French (HAS, ANSM, Santé.fr, Vaccination Info Service). PDFs are kept as-is; for HTML, only the main text is extracted.
 - **B. clean + chunk:** PDF de-hyphenation, then 800-character chunks with 150 overlap and stable IDs (source, page, chunk index).
 - **C. embed:** the same ONNX model as at query time, in batches of 16, L2-normalised.
-- **D. index:** upsert into Chroma (76 chunks today).
+- **D. index:** upsert into Chroma (135 chunks today).
 
 This runs **during `docker build`**, so the index is baked into the image. Third-party documents are downloaded at build time and never committed to Git.
 
@@ -235,30 +271,31 @@ This runs **during `docker build`**, so the index is baked into the image. Third
 
 | Module | Role |
 | --- | --- |
-| `sources.py` | List of official sources, `fetch` downloader (PDF as-is, HTML -> main text via trafilatura) |
+| `sources.py` | Registry of official sources with their language (`fr`/`en`), `fetch` downloader (PDF as-is, HTML -> main text via trafilatura) |
 | `ingestion.py` | `.txt`/`.md`/`.pdf` loading, page split, overlapping chunks with stable IDs |
 | `embeddings.py` | ONNX Runtime embedder (default), optional sentence-transformers embedder, hashing embedder for tests |
 | `vector_store.py` | Persistent local Chroma collection (cosine similarity) |
 | `retrieval.py` | Top-k nearest passages |
 | `answer.py` | `ExtractiveAnswerer` (default, no LLM, relevance filter) and `LLMAnswerer` interface (stub for a local LLM such as Ollama) |
 | `pipeline.py`, `cli.py` | `fetch`, `ingest`, `ask`, `eval` commands |
-| `evaluation.py` | hit@k / refusal-accuracy evaluation on a JSONL question set |
+| `evaluation.py` | hit@k / refusal-accuracy evaluation on a JSONL question set, per language and cross-lingual |
 | `api.py` | FastAPI backend (`/api/ask`, `/api/health`, `/api/sources`) + static frontend |
 | `app.py` | Streamlit demo UI (fallback) |
 | `frontend/` | React + TypeScript + Tailwind single-page app |
 
 ### Relevance filter
 
-A retrieved passage is cited only if its cosine score is **≥ `MIN_SCORE`** (absolute
-floor, default 0.6) **and ≥ best score − `SCORE_MARGIN`** (default 0.08). If nothing
-passes, the system refuses to answer. Thresholds are heuristics tuned on the demo
-corpus; they do not guarantee relevance.
+Before filtering, at most **`MAX_PER_SOURCE`** passages (default 2) are kept per document, so
+one long page cannot fill the whole top-k. A retrieved passage is then cited only if its cosine
+score is **≥ `MIN_SCORE`** (absolute floor, default 0.55) **and ≥ best score − `SCORE_MARGIN`**
+(default 0.08). If nothing passes, the system refuses to answer. The thresholds are heuristics
+tuned on the demo corpus (see [Evaluation](#evaluation)); they do not guarantee relevance.
 
 ## Scaling to production on Azure (target design – not deployed)
 
-> **⚠️ FR –** Architecture **cible**, non déployée : elle décrit comment passer du démonstrateur à un
-> service à grande échelle. **EN –** This is a **target design, not deployed**. It shows how the
-> demo would scale; no Azure resources exist for this project.
+> **⚠️ This is a target design, not deployed.** It shows how the demo would scale; no Azure
+> resources exist for this project. *Architecture **cible**, non déployée : elle décrit comment
+> passer du démonstrateur à un service à grande échelle.*
 
 ![Target architecture on Azure (not deployed)](docs/architecture/azure-target-architecture.png)
 
@@ -325,17 +362,25 @@ These are the main factors behind the bill. No figures are given here on purpose
 9. **Observability:** App Insights with OpenTelemetry; dashboards for latency, refusal rate and tokens.
 10. **CI/CD:** GitHub Actions with OIDC to Azure. Run `pytest` and `healthcare-rag eval` as a **blocking gate** (fail below the current baseline), then deploy a new revision with traffic splitting.
 
-## Data / Données
+## Data
 
-- `data/public/SOURCES.md` lists the official documents used (title, publisher, URL,
-  retrieval date, reuse note as stated by each site): HAS & SFHTA (hypertension memo,
-  PDF), ANSM (paracetamol), Santé.fr (hand washing), Vaccination Info Service / Santé
-  publique France (flu vaccination).
+- `data/public/SOURCES.md` lists the 9 official documents (title, publisher, URL, language,
+  retrieval date, reuse terms as stated by each publisher):
+  - **English (U.S. federal, public domain as stated by each agency):** CDC: handwashing,
+    seasonal flu vaccine key facts, high blood pressure. FDA: acetaminophen safe use, and
+    "Don't Overuse Acetaminophen".
+  - **French:** HAS & SFHTA (hypertension memo, PDF), ANSM (paracetamol), Santé.fr (hand
+    washing), Vaccination Info Service / Santé publique France (flu vaccination).
 - **These third-party documents are not included in this repository.** Run
   `python -m healthcare_rag fetch` to download them from their original URLs into
   `data/public/raw/` (git-ignored). Their content belongs to their publishers.
+- **CDC / FDA notice:** excerpts are quoted unchanged, with attribution ("Source: CDC" /
+  "Source: FDA"), and are available at no charge on cdc.gov and fda.gov. Reference to these
+  materials does not constitute or imply endorsement of this project by the U.S. Government,
+  the Department of Health and Human Services (HHS), the Centers for Disease Control and
+  Prevention (CDC) or the Food and Drug Administration (FDA).
 - `data/sample/` contains short **fictional** sample texts written for tests and demos
-  (clearly labeled, not official, not medical advice).
+  (clearly labelled, not official, not medical advice).
 
 ## Configuration
 
@@ -348,7 +393,8 @@ Environment variables prefixed with `HEALTHCARE_RAG_`:
 | `COLLECTION_NAME` | healthcare_rag |
 | `CHUNK_SIZE` / `OVERLAP` | 800 / 150 characters |
 | `TOP_K` | 4 |
-| `MIN_SCORE` | 0.6 (cosine similarity floor) |
+| `MIN_SCORE` | 0.55 (cosine similarity floor) |
+| `MAX_PER_SOURCE` | 2 (passages per document in the top-k; 0 = no cap) |
 | `SCORE_MARGIN` | 0.08 (max gap to the best passage) |
 | `EMBEDDER` | onnx (`st`, `hashing`) |
 | `ONNX_VARIANT` | fp32 (`int8`) |
@@ -363,7 +409,15 @@ settings or the embedder; `SOURCES.md`/`README.md` files are never indexed.
 - Extractive only: the answer is the cited passages, not a synthesized sentence.
 - PDF text is lightly cleaned (end-of-line hyphenation such as `néces-`/`site` is re-joined), but
   some mid-line splits remain (e.g. `diurét ique`).
-- Sources can change or move online; `fetch` reports failures per document.
+- Sources can change or move online; `fetch` reports failures per document. Some sites
+  (e.g. cdc.gov) reject browser-like user agents, so `fetch` identifies itself honestly as
+  `healthcare-rag/0.2`.
+- Cross-lingual retrieval works, but sometimes ranks a passage in the other language first
+  (e.g. an English hand-washing question gets the French page). Use the source-language filter
+  when you need one language.
+- The English sources describe **U.S.** recommendations and the French ones describe **French**
+  recommendations; they can differ (e.g. 20 s vs 30 s hand washing, a 4 g vs 3 g daily
+  paracetamol limit).
 - Citations prove traceability, not medical correctness.
 
 ## License
