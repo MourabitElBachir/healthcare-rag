@@ -29,10 +29,27 @@ streamlit run src/healthcare_rag/app.py
 python -m healthcare_rag eval -k 4 # small retrieval evaluation (see below)
 ```
 
-The first `ingest`/`ask` downloads the free embedding model
-`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (~460 MB) from Hugging Face.
-Afterwards you can work offline with `HF_HUB_OFFLINE=1`. Fully offline demo without any
-model: add `--embedder hashing` to both `ingest` and `ask` (lexical baseline only).
+The first `ingest`/`ask` downloads the free multilingual embedding model
+`paraphrase-multilingual-MiniLM-L12-v2` as an ONNX export (~470 MB, once) and runs it with
+**onnxruntime — no PyTorch**. Afterwards you can work offline with `HF_HUB_OFFLINE=1`.
+Fully offline demo without any model: add `--embedder hashing` to both `ingest` and `ask`
+(lexical baseline only).
+
+### Embedding backends
+
+| `--embedder` / `HEALTHCARE_RAG_EMBEDDER` | Install | Notes |
+| --- | --- | --- |
+| `onnx` (default) | base install | onnxruntime + SentencePiece, fp32 ONNX weights memory-mapped (external data). Same vectors as sentence-transformers (cosine 1.000000 on our checks), API peak RAM ≈ 300 MB |
+| `onnx` + `HEALTHCARE_RAG_ONNX_VARIANT=int8` | base install | int8 export, lower RAM, slightly lower quality (hit@4 8/10 instead of 9/10 with the default thresholds) |
+| `st` | `pip install -e ".[st]"` | sentence-transformers + PyTorch (reference implementation, much heavier install and RAM) |
+| `hashing` | base install | deterministic lexical baseline used by the tests |
+
+Why it is lean: the Hugging Face `tokenizer.json` of this 250k-token multilingual model
+costs ~285 MB of RAM, so the ONNX backend uses the original XLM-R
+`sentencepiece.bpe.model` with the fairseq id mapping (identical ids on all 602 corpus
+lines and questions tested, ~95 MB); and the ONNX weights are converted once to external
+data so onnxruntime memory-maps them and only the embedding rows actually used are paged
+in. Switching backend requires `ingest --reset`.
 
 Example output:
 
@@ -55,7 +72,7 @@ milliseconds after start-up.
 ```bash
 pip install -e ".[api]"
 cd frontend && npm ci && npm run build && cd ..
-uvicorn healthcare_rag.api:app --port 7860        # http://localhost:7860
+uvicorn healthcare_rag.api:app --port 7860        # http://localhost:7860 (no PyTorch needed)
 # frontend dev server with hot reload (proxies /api to :7860): cd frontend && npm run dev
 ```
 
@@ -79,19 +96,29 @@ screen-reader support (landmarks, `aria-live`, visible focus).
 
 Empty state: ![Home](docs/v2_desktop_dark_empty.png)
 
-### Docker / Hugging Face Spaces
+### Deploy for free on Render (Docker)
 
-The `Dockerfile` builds the frontend, installs the API (CPU-only PyTorch), downloads the
-official sources from their URLs, embeds them at build time and serves everything on
-port **7860** as uid 1000 (Hugging Face Spaces conventions).
+The `Dockerfile` is a multi-stage build without PyTorch: `node:22-slim` builds the
+frontend, then `python:3.12-slim` installs the API, downloads the official sources from
+their URLs, prepares the ONNX model and embeds the corpus **at build time**, and serves
+everything with uvicorn on `$PORT` (Render injects it; default **10000**), as uid 1000.
+
+Measured locally with the same steps (no Docker): API peak RAM ≈ **300 MB** after model
+load and queries (fits the 512 MB free instance), ~15 ms per question.
+
+1. Fork/push this repository to GitHub.
+2. On [Render](https://render.com): **New → Blueprint**, select the repository; it reads
+   [`render.yaml`](render.yaml) (free plan, Docker runtime, health check `/api/health`,
+   `HEALTHCARE_RAG_THREADS=1`). Or create a **Web Service** with runtime *Docker*.
+3. Wait for the build (sources + model download), then open the service URL.
+
+Free instances sleep after ~15 minutes without traffic; the next request wakes the
+service (cold start of tens of seconds). Any other Docker host works too:
 
 ```bash
 docker build -t medsource-rag .
-docker run -p 7860:7860 medsource-rag
+docker run -p 10000:10000 medsource-rag     # http://localhost:10000
 ```
-
-For a Space, create a **Docker** Space and add this front matter to the Space's README:
-`sdk: docker` and `app_port: 7860`.
 
 ## Streamlit demo (fallback)
 
@@ -154,7 +181,7 @@ sources and always cites the exact passage, so every answer can be checked.
 fetch (official URLs) -> data/public/raw/ (PDF + HTML-to-text)
         |
 ingest -> load pages -> chunk (800 chars, 150 overlap, source/page metadata)
-        -> embed (local multilingual sentence-transformers) -> Chroma (local, cosine)
+        -> embed (multilingual MiniLM, local ONNX Runtime) -> Chroma (local, cosine)
 
 ask -> embed question -> top-k retrieval -> relevance filter -> extractive answer + citations
                                              (score >= floor AND >= best - margin)
@@ -164,7 +191,7 @@ ask -> embed question -> top-k retrieval -> relevance filter -> extractive answe
 | --- | --- |
 | `sources.py` | List of official sources, `fetch` downloader (PDF as-is, HTML -> main text via trafilatura) |
 | `ingestion.py` | `.txt`/`.md`/`.pdf` loading, page split, overlapping chunks with stable IDs |
-| `embeddings.py` | Local sentence-transformers embedder + deterministic hashing embedder for tests |
+| `embeddings.py` | ONNX Runtime embedder (default), optional sentence-transformers embedder, hashing embedder for tests |
 | `vector_store.py` | Persistent local Chroma collection (cosine similarity) |
 | `retrieval.py` | Top-k nearest passages |
 | `answer.py` | `ExtractiveAnswerer` (default, no LLM, relevance filter) and `LLMAnswerer` interface (stub for a local LLM such as Ollama) |
@@ -206,6 +233,10 @@ Environment variables prefixed with `HEALTHCARE_RAG_`:
 | `TOP_K` | 4 |
 | `MIN_SCORE` | 0.6 (cosine similarity floor) |
 | `SCORE_MARGIN` | 0.08 (max gap to the best passage) |
+| `EMBEDDER` | onnx (`st`, `hashing`) |
+| `ONNX_VARIANT` | fp32 (`int8`) |
+| `MODEL_DIR` | ~/.cache/healthcare-rag (prepared ONNX model) |
+| `THREADS` | onnxruntime default (set 1 on tiny instances) |
 
 Notes: text-based PDFs only (no OCR); use `--reset` after changing documents, chunk
 settings or the embedder; `SOURCES.md`/`README.md` files are never indexed.

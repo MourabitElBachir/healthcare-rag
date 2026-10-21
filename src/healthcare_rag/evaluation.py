@@ -61,7 +61,7 @@ def compute_metrics(results: list[EvalResult]) -> dict[str, float | int]:
     }
 
 
-def run_eval(path: str | Path, *, k: int | None = None, embedder: str = "st",
+def run_eval(path: str | Path, *, k: int | None = None, embedder: str | None = None,
              config: Config | None = None) -> tuple[list[EvalResult], dict]:
     config = config or Config.from_env()
     encoder, store = load_components(embedder, config)

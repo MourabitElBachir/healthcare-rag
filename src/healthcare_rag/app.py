@@ -17,7 +17,7 @@ st.set_page_config(page_title="healthcare-rag", page_icon="🩺", layout="wide")
 
 
 @st.cache_resource(show_spinner="Chargement du modèle d'embeddings et de l'index…")
-def get_components(embedder: str = "st"):
+def get_components(embedder: str | None = None):
     encoder, store = load_components(embedder)
     encoder.embed(["warm-up"])  # load the model now, not on the first question
     return encoder, store
@@ -44,7 +44,7 @@ k = st.slider("Nombre de passages candidats (top-k)", min_value=1, max_value=10,
               value=config.top_k)
 
 if question.strip():
-    encoder, store = get_components(os.getenv("HEALTHCARE_RAG_EMBEDDER", "st"))
+    encoder, store = get_components(os.getenv("HEALTHCARE_RAG_EMBEDDER"))
     answer = answer_question(question, encoder, store, k=k, config=config)
     if not answer.citations:
         st.error("Je ne peux pas répondre à partir des sources disponibles. / "

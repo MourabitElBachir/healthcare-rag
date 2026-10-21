@@ -2,7 +2,7 @@
 
 Run locally:  uvicorn healthcare_rag.api:app --port 7860
 Environment:
-  HEALTHCARE_RAG_EMBEDDER     "st" (default) or "hashing" (offline tests)
+  HEALTHCARE_RAG_EMBEDDER     "onnx" (default, int8 ONNX), "st" (PyTorch) or "hashing" (tests)
   HEALTHCARE_RAG_FRONTEND_DIR built frontend directory (default: frontend/dist)
   HEALTHCARE_RAG_AUTO_INGEST  directory to ingest at startup if the index is empty
 """
@@ -20,7 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .config import Config
-from .embeddings import Embedder
+from .embeddings import Embedder, default_embedder
 from .pipeline import answer_question, build_index, load_components
 from .sources import SOURCES
 from .vector_store import ChromaVectorStore
@@ -31,7 +31,7 @@ REFUSAL = {"fr": "Je ne peux pas répondre à partir des sources disponibles.",
 
 
 def _embedder_name() -> str:
-    return os.getenv("HEALTHCARE_RAG_EMBEDDER", "st")
+    return default_embedder()
 
 
 @lru_cache(maxsize=1)

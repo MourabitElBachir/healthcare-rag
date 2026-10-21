@@ -1,12 +1,14 @@
 """Command-line ingestion and questions."""
 import argparse
+from .embeddings import EMBEDDERS
 from .pipeline import ask, build_index
 from .sources import fetch_all
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--embedder", choices=["hashing", "st"], default="st")
+    parser.add_argument("--embedder", choices=list(EMBEDDERS), default=None,
+                        help="default: $HEALTHCARE_RAG_EMBEDDER or onnx")
     commands = parser.add_subparsers(dest="command", required=True)
     ingest = commands.add_parser("ingest")
     ingest.add_argument("--data-dir", default="data/sample")
@@ -20,7 +22,7 @@ def main() -> None:
     evaluate.add_argument("--file", default="eval/questions.jsonl")
     evaluate.add_argument("-k", type=int, default=None)
     for command in (ingest, query, evaluate):
-        command.add_argument("--embedder", choices=["hashing", "st"],
+        command.add_argument("--embedder", choices=list(EMBEDDERS),
                              default=argparse.SUPPRESS)
     args = parser.parse_args()
     try:

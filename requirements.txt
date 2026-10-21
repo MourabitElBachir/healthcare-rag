@@ -1,5 +1,12 @@
-sentence-transformers
+onnxruntime
+onnx
+sentencepiece
+huggingface_hub
+numpy
 chromadb
 pypdf
 trafilatura
+fastapi
+uvicorn[standard]
 pytest
+httpx

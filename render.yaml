@@ -1,0 +1,13 @@
+# Render Blueprint: free Docker web service (sleeps when idle; first request wakes it).
+services:
+  - type: web
+    name: medsource-rag
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: HEALTHCARE_RAG_THREADS
+        value: "1"

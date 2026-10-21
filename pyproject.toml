@@ -9,12 +9,13 @@ description = "Local extractive retrieval with exact passage citations"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "El Bachir Mourabit" }]
-dependencies = ["sentence-transformers", "chromadb", "pypdf", "trafilatura"]
+dependencies = ["onnxruntime>=1.17", "onnx>=1.15", "sentencepiece>=0.2", "huggingface_hub>=0.20", "numpy", "chromadb", "pypdf", "trafilatura"]
 
 [project.optional-dependencies]
 dev = ["pytest", "httpx"]
 api = ["fastapi>=0.110", "uvicorn[standard]>=0.29"]
 ui = ["streamlit>=1.30"]
+st = ["sentence-transformers"]  # optional PyTorch backend (--embedder st)
 
 [tool.setuptools.packages.find]
 where = ["src"]

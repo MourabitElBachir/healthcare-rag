@@ -195,3 +195,28 @@ def test_api_ask_answers_and_refuses(api_client):
     assert "Je ne peux pas" in refused["message"]["fr"]
     assert client.post("/api/ask", json={"question": ""}).status_code == 422
     assert client.post("/api/ask", json={"question": "x", "k": 50}).status_code == 422
+
+
+def test_embedder_selection_without_download(monkeypatch):
+    from healthcare_rag.embeddings import OnnxEmbedder, default_embedder
+    monkeypatch.delenv("HEALTHCARE_RAG_EMBEDDER", raising=False)
+    assert default_embedder() == "onnx"
+    monkeypatch.setenv("HEALTHCARE_RAG_EMBEDDER", "hashing")
+    assert default_embedder() == "hashing"
+    assert OnnxEmbedder("m").identity.startswith("onnx-fp32:")
+    assert OnnxEmbedder("m", variant="int8").identity.startswith("onnx-int8:")
+    with pytest.raises(ValueError):
+        OnnxEmbedder("m", variant="fp64")
+    with pytest.raises(ValueError, match="embedder must be one of"):
+        ask("x", embedder="unknown", config=Config())
+
+
+def test_onnx_xlmr_token_ids_match_reference():
+    """Only runs when the model files are already cached (no download in CI)."""
+    from healthcare_rag.embeddings import OnnxEmbedder
+    embedder = OnnxEmbedder("m")
+    target = embedder.model_dir() / f"onnx-{embedder.variant}-{embedder.ONNX_REVISION[:7]}"
+    if not (target / embedder.SPM_FILE).is_file():
+        pytest.skip("ONNX model not cached")
+    # Reference ids produced by the Hugging Face XLM-R fast tokenizer for this model.
+    assert embedder.token_ids("Bonjour") == [0, 84602, 2]
