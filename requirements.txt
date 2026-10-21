@@ -1,4 +1,5 @@
 sentence-transformers
 chromadb
 pypdf
+trafilatura
 pytest

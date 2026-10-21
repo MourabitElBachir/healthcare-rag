@@ -1,120 +1,124 @@
 # healthcare-rag
 
-## FR
+> **⚠️ Pas un avis médical / Not medical advice.** Projet de démonstration (portfolio).
+> Les réponses sont des extraits de documents publics, qui peuvent être datés.
+> Consultez toujours un professionnel de santé. / Demo project: answers are excerpts
+> of public documents that may be outdated. Always consult a health professional.
 
-Squelette Python local pour retrouver des passages de documents de santé et les
-citer exactement : fichier, page (à partir de 1), fragment (à partir de 0).
-La réponse est un extrait, sans LLM ni conseil personnalisé.
+Local, zero-cost **RAG (Retrieval-Augmented Generation)** pipeline that answers health
+questions **only** from official public documents and cites the exact source passage
+(file, page, chunk, similarity score). No LLM by default, no API keys, no cloud.
 
-```text
-documents -> ingestion -> fragments -> embeddings -> Chroma local
-                                                       |
-question -> embedding -> recherche <--------------------+
-                            |
-                     extraits + citations
-```
-
-Préparation, dans un environnement où les dépendances peuvent être installées :
+## Quickstart
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -e .
-python -m healthcare_rag ingest --data-dir data/sample --reset --embedder hashing
-python -m healthcare_rag ask "hygiène des mains" -k 4 --embedder hashing
-pytest
+pip install -e ".[dev]"            # or: pip install -r requirements.txt && pip install -e .
+
+python -m healthcare_rag fetch     # download official sources into data/public/raw/ (git-ignored)
+python -m healthcare_rag ingest --data-dir data/public/raw --reset
+python -m healthcare_rag ask "Combien de temps faut-il se laver les mains ?" -k 4
+
+pytest                             # offline tests, no model download
 ```
 
-Aucune clé, API payante, infrastructure cloud ou Docker. `hashing` fonctionne
-sans téléchargement. Le mode par défaut `st` utilise un modèle gratuit qui doit
-être téléchargé une fois, puis être disponible dans le cache pour travailler
-hors ligne. Pour interdire le réseau avec un modèle déjà en cache, définir
-`HF_HUB_OFFLINE=1`. Utiliser le même embedder pour indexer et interroger.
+The first `ingest`/`ask` downloads the free embedding model
+`sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (~460 MB) from Hugging Face.
+Afterwards you can work offline with `HF_HUB_OFFLINE=1`. Fully offline demo without any
+model: add `--embedder hashing` to both `ingest` and `ask` (lexical baseline only).
 
-**Pas un avis médical.** Les trois fichiers fournis sont des données fictives
-illustratives, pas des publications officielles. Pour un corpus réel, remplacer
-ces fichiers par des documents publics officiels vérifiés, puis réindexer avec
-`--reset`. La sélection et la vérification des sources sont manuelles : le code
-ne certifie ni leur provenance, ni leur actualité. Il cite uniquement les
-passages du corpus local et refuse lorsque leur score est insuffisant.
-
-## Sources publiques officielles (FR)
-
-`data/public/` contient 4 documents officiels français récupérés le 2026-10-21
-(provenance, URL et conditions de réutilisation détaillées dans
-[`data/public/SOURCES.md`](data/public/SOURCES.md)) :
-
-- HAS & SFHTA : fiche mémo « Prise en charge de l'hypertension artérielle de l'adulte » (2016, PDF) ;
-- ANSM : dossier thématique « Le paracétamol » ;
-- Santé.fr : « Pourquoi, quand et comment bien se laver les mains ? » ;
-- Vaccination Info Service (Santé publique France) : « Grippe ».
-
-```bash
-HF_HUB_OFFLINE=1 python -m healthcare_rag ingest --data-dir data/public --reset
-HF_HUB_OFFLINE=1 python -m healthcare_rag ask "Combien de temps faut-il se laver les mains ?" -k 3
-```
-
-Chaque extrait affiche sa source, sa page, son fragment et son score de similarité
-cosinus. `SOURCES.md` et `README.md` ne sont pas indexés. **Pas un avis médical** :
-ces documents peuvent être datés ou mis à jour par leurs éditeurs ; consulter
-toujours la version en ligne et un professionnel de santé. Les données de
-`data/sample/` restent des données fictives de démonstration.
-
-## Official public sources (EN)
-
-`data/public/` holds 4 official French public-health documents retrieved on
-2026-10-21 (HAS/SFHTA hypertension memo, ANSM paracetamol page, Santé.fr hand
-washing page, Vaccination Info Service flu page). See `data/public/SOURCES.md`
-for titles, publishers, URLs and the reuse notes stated by each site. Answers
-show source, page, chunk and cosine similarity score. **Not medical advice**:
-documents may be outdated; always check the publisher's current version and a
-health professional. Check each publisher's reuse terms before publishing.
-
-## EN
-
-A minimal local Python project for locating health document passages and quoting
-them with exact file, page, and chunk references. Extractive answers use no LLM.
+Example output:
 
 ```text
-ingest -> chunk -> embed -> vector store -> retrieve -> answer with citations
-                                              ^
-                                        embed question
+[1] santefr_lavage_des_mains.txt p.1, chunk 3 (score 0.87)
+Comment se laver les mains efficacement ?
+Il faut se laver les mains à l’eau et au savon (de préférence liquide) ; pendant 30 secondes, ...
 ```
 
-Use the commands above; for example:
+Off-topic questions are refused:
+`I cannot answer from the available source passages. Je ne peux pas répondre à partir des sources disponibles.`
 
-```bash
-python -m healthcare_rag ask "hand hygiene" --embedder hashing
+## FR – Le problème
+
+Les soignants et les patients perdent du temps à chercher une information fiable dans
+des documents de santé longs (recommandations HAS, pages ANSM, etc.). Un chatbot
+généraliste peut inventer des réponses, ce qui est dangereux en santé. Ce projet répond
+uniquement à partir d'un corpus de sources officielles et cite le passage exact, pour que
+chaque réponse soit vérifiable.
+
+## EN – The problem
+
+Finding reliable information in long official health documents is slow, and general
+chatbots can hallucinate. This project only answers from a curated corpus of official
+sources and always cites the exact passage, so every answer can be checked.
+
+## Architecture
+
+```text
+fetch (official URLs) -> data/public/raw/ (PDF + HTML-to-text)
+        |
+ingest -> load pages -> chunk (800 chars, 150 overlap, source/page metadata)
+        -> embed (local multilingual sentence-transformers) -> Chroma (local, cosine)
+
+ask -> embed question -> top-k retrieval -> relevance filter -> extractive answer + citations
+                                             (score >= floor AND >= best - margin)
 ```
 
-Use `--embedder st` (the default) for multilingual semantic retrieval after the
-free model has been cached. Hashing is a deterministic lexical baseline for
-fully offline demos and tests; it does not translate or understand questions.
-Tests use hashing and temporary Chroma directories and never load a model.
-
-**Not medical advice. Sample data only.** The supplied files are illustrative,
-not official sources. For real exploration, curate verified official public
-documents and rebuild with `ingest --data-dir YOUR_DIR --reset`. Provenance must
-be checked manually. Citations establish traceability, not medical correctness.
-Similarity thresholds are heuristic and cannot guarantee relevance or detect
-all unsupported questions. No external search or generated medical claims.
-
-Configuration uses `HEALTHCARE_RAG_` environment variables:
-
-| Suffix | Default |
+| Module | Role |
 | --- | --- |
-| MODEL_NAME | sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 |
-| PERSIST_DIR | .chroma |
-| COLLECTION_NAME | healthcare_rag |
-| CHUNK_SIZE | 800 characters |
-| OVERLAP | 150 characters |
-| TOP_K | 4 |
-| MIN_SCORE | 0.25 (cosine similarity) |
+| `sources.py` | List of official sources, `fetch` downloader (PDF as-is, HTML -> main text via trafilatura) |
+| `ingestion.py` | `.txt`/`.md`/`.pdf` loading, page split, overlapping chunks with stable IDs |
+| `embeddings.py` | Local sentence-transformers embedder + deterministic hashing embedder for tests |
+| `vector_store.py` | Persistent local Chroma collection (cosine similarity) |
+| `retrieval.py` | Top-k nearest passages |
+| `answer.py` | `ExtractiveAnswerer` (default, no LLM, relevance filter) and `LLMAnswerer` interface (stub for a local LLM such as Ollama) |
+| `pipeline.py`, `cli.py` | `fetch`, `ingest`, `ask` commands |
 
-Supported inputs: UTF-8 `.txt`, `.md` (form-feed separates pages), and text-based
-PDFs via pypdf. Scanned PDFs require OCR outside this skeleton. Chunk indices
-restart on each page. Passages preserve the extracted text exactly; PDF text
-order depends on extraction. Sources use paths relative to the input directory.
-Re-ingestion upserts stable IDs; use `--reset` after editing/removing documents,
-changing chunk settings, or switching embedding providers. Reset deletes only
-the configured collection. `LLMAnswerer` is an unimplemented local-LLM extension.
+### Relevance filter
+
+A retrieved passage is cited only if its cosine score is **≥ `MIN_SCORE`** (absolute
+floor, default 0.6) **and ≥ best score − `SCORE_MARGIN`** (default 0.08). If nothing
+passes, the system refuses to answer. Thresholds are heuristics tuned on the demo
+corpus; they do not guarantee relevance.
+
+## Data / Données
+
+- `data/public/SOURCES.md` lists the official documents used (title, publisher, URL,
+  retrieval date, reuse note as stated by each site): HAS & SFHTA (hypertension memo,
+  PDF), ANSM (paracetamol), Santé.fr (hand washing), Vaccination Info Service / Santé
+  publique France (flu vaccination).
+- **These third-party documents are not included in this repository.** Run
+  `python -m healthcare_rag fetch` to download them from their original URLs into
+  `data/public/raw/` (git-ignored). Their content belongs to their publishers.
+- `data/sample/` contains short **fictional** sample texts written for tests and demos
+  (clearly labeled, not official, not medical advice).
+
+## Configuration
+
+Environment variables prefixed with `HEALTHCARE_RAG_`:
+
+| Variable | Default |
+| --- | --- |
+| `MODEL_NAME` | sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 |
+| `PERSIST_DIR` | .chroma |
+| `COLLECTION_NAME` | healthcare_rag |
+| `CHUNK_SIZE` / `OVERLAP` | 800 / 150 characters |
+| `TOP_K` | 4 |
+| `MIN_SCORE` | 0.6 (cosine similarity floor) |
+| `SCORE_MARGIN` | 0.08 (max gap to the best passage) |
+
+Notes: text-based PDFs only (no OCR); use `--reset` after changing documents, chunk
+settings or the embedder; `SOURCES.md`/`README.md` files are never indexed.
+
+## Limits
+
+- Extractive only: the answer is the cited passages, not a synthesized sentence.
+- PDF text extraction can split some words (e.g. `diurét ique`).
+- Sources can change or move online; `fetch` reports failures per document.
+- Citations prove traceability, not medical correctness.
+
+## License
+
+Code: [MIT](LICENSE) © 2026 El Bachir Mourabit. The MIT license covers the code only,
+not the third-party documents downloaded by `fetch` (see `data/public/SOURCES.md`).

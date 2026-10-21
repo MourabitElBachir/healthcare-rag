@@ -11,7 +11,8 @@ class Config:
     chunk_size: int = 800
     overlap: int = 150
     top_k: int = 4
-    min_score: float = 0.25
+    min_score: float = 0.6
+    score_margin: float = 0.08
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -20,7 +21,8 @@ class Config:
         values = {}
         for name, cast in (("model_name", str), ("persist_dir", str),
                            ("collection_name", str), ("chunk_size", int),
-                           ("overlap", int), ("top_k", int), ("min_score", float)):
+                           ("overlap", int), ("top_k", int), ("min_score", float),
+                           ("score_margin", float)):
             values[name] = cast(os.getenv("HEALTHCARE_RAG_" + name.upper(),
                                          str(getattr(defaults, name))))
         return cls(**values)

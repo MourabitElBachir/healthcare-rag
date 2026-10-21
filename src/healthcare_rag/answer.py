@@ -15,11 +15,26 @@ class AnswerGenerator(Protocol):
 
 
 class ExtractiveAnswerer:
-    def __init__(self, min_score: float = 0.25):
+    """Return cited passages, keeping only those that are clearly relevant.
+
+    A passage is kept when its cosine score is >= ``min_score`` (absolute floor)
+    AND >= ``best_score - score_margin`` (relative margin to the top passage).
+    """
+
+    def __init__(self, min_score: float = 0.6, score_margin: float = 0.08):
         self.min_score = min_score
+        self.score_margin = score_margin
+
+    def select(self, passages: list[Passage]) -> list[Passage]:
+        """Apply the absolute floor and the relative margin filters."""
+        kept = [p for p in passages if p.score >= self.min_score]
+        if not kept:
+            return []
+        best = max(p.score for p in kept)
+        return [p for p in kept if p.score >= best - self.score_margin]
 
     def answer(self, question: str, passages: list[Passage]) -> Answer:
-        citations = [p for p in passages if p.score >= self.min_score]
+        citations = self.select(passages)
         if not question.strip() or not citations:
             return Answer("I cannot answer from the available source passages. "
                           "Je ne peux pas répondre à partir des sources disponibles.", [])

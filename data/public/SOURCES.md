@@ -3,8 +3,8 @@
 Documents officiels français, téléchargés le 2026-10-21. Utilisés uniquement à des fins de démonstration (projet portfolio). Ce n'est pas un avis médical.
 Official French public documents, retrieved on 2026-10-21, used for demonstration only. Not medical advice.
 
-Pour les pages HTML, le texte principal a été extrait automatiquement (trafilatura) et un court en-tête de provenance a été ajouté en début de fichier. Les PDF sont conservés tels quels.
-For HTML pages, the main text was automatically extracted (trafilatura) and a short provenance header was added at the top. PDFs are kept unchanged.
+**Ces documents ne sont pas inclus dans le dépôt.** Ils sont téléchargés depuis leurs URL d'origine par `python -m healthcare_rag fetch` dans `data/public/raw/` (ignoré par git). Les PDF sont conservés tels quels ; pour les pages HTML, le texte principal est extrait automatiquement (trafilatura) et un court en-tête de provenance est ajouté.
+**These documents are not included in the repository.** `python -m healthcare_rag fetch` downloads them from their original URLs into `data/public/raw/` (git-ignored). PDFs are kept unchanged; for HTML pages the main text is extracted (trafilatura) and a short provenance header is added. Content and rights belong to each publisher.
 
 | Fichier / File | Titre / Title | Éditeur / Publisher | URL | Récupéré / Retrieved | Licence / Usage note (as stated on the site) |
 |---|---|---|---|---|---|
@@ -13,5 +13,5 @@ For HTML pages, the main text was automatically extracted (trafilatura) and a sh
 | `santefr_lavage_des_mains.txt` | Pourquoi, quand et comment bien se laver les mains ? (publié le 02/10/2025) | Santé.fr – Service Public d'Information en Santé | https://www.sante.fr/gestes-barrieres/pourquoi-quand-et-comment-bien-se-laver-les-mains | 2026-10-21 | Not stated (aucune mention de licence trouvée sur la page des mentions légales consultée). |
 | `vaccination_info_service_grippe.txt` | Grippe – Les maladies et leurs vaccins | Vaccination Info Service (Santé publique France) | https://vaccination-info-service.fr/Les-maladies-et-leurs-vaccins/Grippe | 2026-10-21 | Not stated (page des mentions légales non trouvée). |
 
-Avant toute publication publique du dépôt, vérifier les conditions de réutilisation de chaque éditeur.
-Before publishing the repository, check each publisher's reuse terms.
+Avant toute réutilisation des documents, vérifier les conditions de chaque éditeur.
+Before reusing these documents, check each publisher's reuse terms.

@@ -86,3 +86,15 @@ def test_sources_metadata_file_is_not_ingested(tmp_path):
     (tmp_path / "SOURCES.md").write_text("provenance table", encoding="utf-8")
     (tmp_path / "doc.txt").write_text("hand hygiene", encoding="utf-8")
     assert {c.source for c in ingest_directory(tmp_path)} == {"doc.txt"}
+
+
+def test_relevance_filter_floor_and_margin():
+    passages = [Passage("a", "a.txt", 1, 0, 0.75), Passage("b", "b.txt", 1, 0, 0.72),
+                Passage("c", "c.pdf", 9, 3, 0.65), Passage("d", "d.txt", 1, 0, 0.40)]
+    kept = ExtractiveAnswerer(min_score=0.6, score_margin=0.08).select(passages)
+    assert [p.source for p in kept] == ["a.txt", "b.txt"]  # c: outside margin, d: below floor
+    assert [p.source for p in ExtractiveAnswerer(0.6, 0.2).select(passages)] == [
+        "a.txt", "b.txt", "c.pdf"]
+    assert ExtractiveAnswerer(0.8, 0.08).select(passages) == []
+    config = Config()
+    assert (config.min_score, config.score_margin) == (0.6, 0.08)

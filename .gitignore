@@ -7,3 +7,9 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+
+# Third-party documents: downloaded locally with `python -m healthcare_rag fetch`, never committed
+data/public/raw/
+# Local env / secrets
+.env
+*.env

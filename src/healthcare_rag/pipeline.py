@@ -44,4 +44,4 @@ def ask(question: str, *, k: int | None = None, embedder: str = "st",
     config = config or Config.from_env()
     encoder, store = _components(config, embedder)
     passages = Retriever(encoder, store).retrieve(question, config.top_k if k is None else k)
-    return ExtractiveAnswerer(config.min_score).answer(question, passages)
+    return ExtractiveAnswerer(config.min_score, config.score_margin).answer(question, passages)
