@@ -1,5 +1,7 @@
 # MedSource RAG (healthcare-rag)
 
+**🔗 Live demo / Démo en ligne : <https://medsource-rag.onrender.com>** · free Render instance, the first request after idle can take about a minute (cold start) · [Architecture](#architecture-current--actuelle) · [Azure target design](#scaling-to-production-on-azure-target-design--not-deployed)
+
 ![MedSource RAG – dark mode](docs/v2_desktop_dark_answer.png)
 
 > **⚠️ Pas un avis médical / Not medical advice.** Projet de démonstration (portfolio).
@@ -9,7 +11,7 @@
 
 Local, zero-cost **RAG (Retrieval-Augmented Generation)** pipeline that answers health
 questions **only** from official public documents and cites the exact source passage
-(file, page, chunk, similarity score). No LLM by default, no API keys, no cloud.
+(file, page, chunk, similarity score). No LLM by default, no API keys, no paid API: it runs on a laptop or on Render's free plan.
 
 ## Quickstart
 
@@ -175,17 +177,61 @@ Finding reliable information in long official health documents is slow, and gene
 chatbots can hallucinate. This project only answers from a curated corpus of official
 sources and always cites the exact passage, so every answer can be checked.
 
-## Architecture
+## Architecture (current / actuelle)
 
-```text
-fetch (official URLs) -> data/public/raw/ (PDF + HTML-to-text)
-        |
-ingest -> load pages -> chunk (800 chars, 150 overlap, source/page metadata)
-        -> embed (multilingual MiniLM, local ONNX Runtime) -> Chroma (local, cosine)
+> **FR –** Ce qui tourne réellement aujourd'hui : un seul conteneur Docker sur Render (offre
+> gratuite), sans API payante. **EN –** What is actually deployed today: one Docker container
+> on Render's free plan, no paid API.
 
-ask -> embed question -> top-k retrieval -> relevance filter -> extractive answer + citations
-                                             (score >= floor AND >= best - margin)
+![Current architecture – MedSource RAG on Render](docs/architecture/current-architecture.png)
+
+<sub>Sources: [`docs/architecture/current-architecture.svg`](docs/architecture/current-architecture.svg) ·
+regenerate with `python docs/architecture/make_diagrams.py --png`.</sub>
+
+```mermaid
+flowchart LR
+  subgraph Client
+    B[Browser] -->|loads| SPA[React SPA<br/>Vite · TS · Tailwind]
+  end
+  subgraph Render["Render free · Docker container"]
+    API[FastAPI + uvicorn<br/>serves SPA + /api]
+    subgraph Q["Query pipeline (per request)"]
+      E[ONNX embedder<br/>multilingual MiniLM] --> C[(Chroma<br/>cosine)] --> F{Relevance filter<br/>≥ 0.60 and ≥ best − 0.08} --> X[Extractive answer<br/>+ citations]
+    end
+    subgraph I["Ingestion (docker build)"]
+      FE[fetch] --> CC[clean + chunk] --> EM[embed] --> IX[index]
+    end
+  end
+  S[(HAS · ANSM · Santé.fr ·<br/>Vaccination Info Service)] -->|A · HTTPS| FE
+  IX -.->|same index at runtime| C
+  B -->|1 · GET /| API
+  SPA <-->|2 · POST /api/ask ⇄ cited JSON| API
+  API -->|3| E
+  X -->|6 · citations or refusal| API
+  GH[GitHub master] -.->|push → auto-deploy| Render
 ```
+
+### Request flow / Parcours d'une question
+
+1. The browser loads `GET /`; FastAPI serves the built React SPA (static files).
+2. The SPA sends `POST /api/ask` with the question and gets cited JSON back.
+3. The question is embedded locally (ONNX Runtime, multilingual MiniLM-L12, 384 dims, no torch).
+4. Chroma returns the top-k nearest chunks (cosine similarity).
+5. The relevance filter keeps passages with score ≥ `MIN_SCORE` (0.60) **and** ≥ best − `SCORE_MARGIN` (0.08); otherwise the system refuses.
+6. The extractive answerer returns the exact passages with source, page and score. There is no LLM and no text generation.
+
+The model and the index are loaded once per process. Measured: about 300 MB peak RAM (the free instance has 512 MB) and a warm answer in about 0.2 s round-trip from a client.
+
+### Ingestion flow / Ingestion des sources
+
+- **A. fetch:** download the 4 official URLs (HAS, ANSM, Santé.fr, Vaccination Info Service). PDFs are kept as-is; for HTML, only the main text is extracted.
+- **B. clean + chunk:** PDF de-hyphenation, then 800-character chunks with 150 overlap and stable IDs (source, page, chunk index).
+- **C. embed:** the same ONNX model as at query time, in batches of 16, L2-normalised.
+- **D. index:** upsert into Chroma (76 chunks today).
+
+This runs **during `docker build`**, so the index is baked into the image. Third-party documents are downloaded at build time and never committed to Git.
+
+### Modules
 
 | Module | Role |
 | --- | --- |
@@ -207,6 +253,77 @@ A retrieved passage is cited only if its cosine score is **≥ `MIN_SCORE`** (ab
 floor, default 0.6) **and ≥ best score − `SCORE_MARGIN`** (default 0.08). If nothing
 passes, the system refuses to answer. Thresholds are heuristics tuned on the demo
 corpus; they do not guarantee relevance.
+
+## Scaling to production on Azure (target design – not deployed)
+
+> **⚠️ FR –** Architecture **cible**, non déployée : elle décrit comment passer du démonstrateur à un
+> service à grande échelle. **EN –** This is a **target design, not deployed**. It shows how the
+> demo would scale; no Azure resources exist for this project.
+
+![Target architecture on Azure (not deployed)](docs/architecture/azure-target-architecture.png)
+
+<sub>Source: [`docs/architecture/azure-target-architecture.svg`](docs/architecture/azure-target-architecture.svg).</sub>
+
+```mermaid
+flowchart LR
+  U[Users] -->|1| SWA[Static Web Apps<br/>React SPA · CDN]
+  U -->|2 · POST /api/ask + token| APIM[API Management<br/>optional]
+  ENTRA[Entra ID] -.->|JWT| ACA
+  APIM -->|3| ACA[Container Apps<br/>FastAPI · autoscale 0→N]
+  ACA -->|4 · embed + hybrid top-k| AIS[(Azure AI Search)]
+  ACA -->|5 · grounded generation| AOAI[Azure OpenAI]
+  ACA -->|6 · answer + verified citations / refusal| U
+  AIS -.-|alternative| PG[(Postgres + pgvector<br/>Azure DB / Supabase)]
+  subgraph Ingestion["Scheduled ingestion · Databricks Workflows or Azure Functions"]
+    SCH[Scheduler] -->|A| CR[Crawler] -->|B| ADLS[(ADLS Gen2 / Blob<br/>bronze · silver)] -->|C| PCE[Parse · chunk · embed] -->|D| UP[Index upsert]
+  end
+  PUB[Official publishers] --> CR
+  UP -->|E| AIS
+  KV[Key Vault] -.->|secrets| ACA
+  ACA -.->|telemetry| MON[App Insights · Monitor]
+  GHA[GitHub Actions<br/>tests → eval gate → deploy] -.-> ACA
+```
+
+| Component | Role in MedSource | Why this choice |
+| --- | --- | --- |
+| **Azure Static Web Apps** | Hosts the React SPA, with a preview environment per PR | Global CDN for static files; the frontend is decoupled from API scaling |
+| **Azure Container Apps** | Runs the FastAPI image (retrieve → filter → generate → verify citations) | The same Docker image as today; HTTP/KEDA autoscaling with scale-to-zero; no Kubernetes to operate |
+| **Azure AI Search** | Vector + BM25 hybrid search, semantic ranker, metadata filters (source, date, audience) | Managed index at scale; hybrid search helps with exact drug names and doses |
+| *alt.* **Postgres + pgvector** (Azure Database for PostgreSQL or Supabase) | Same role as AI Search | Cheaper start; vectors live next to relational metadata; SQL the team already knows |
+| **Databricks Workflows** *or* **Azure Functions** | Scheduled crawl → parse → chunk → embed → upsert | Databricks for large or Spark-heavy re-processing; Functions (timer trigger) for a small corpus |
+| **ADLS Gen2 / Blob Storage** | Raw documents (bronze) and cleaned text and chunks (silver), versioned | Reproducible re-indexing, audit trail, licence and provenance kept per document |
+| **Azure OpenAI** | Embeddings, plus a chat model that answers **only** from retrieved passages | Grounded generation in Azure data residency. Each sentence must map to a cited passage, otherwise the system refuses |
+| **Microsoft Entra ID** | User sign-in (External ID) and managed identities for services | No secrets in code; access per user or role |
+| **Azure Key Vault** | API keys and connection strings | Read through managed identity; rotation without redeploy |
+| **Application Insights / Azure Monitor** | Traces, latency, refusal rate, token usage, cost alerts | Watch answer quality and spend, not only uptime |
+| **GitHub Actions** | CI/CD: tests → **automatic eval gate** → build → push to ACR → new revision | Blocks a release if hit@k, refusal accuracy or faithfulness on the golden set drop below the baseline |
+| *optional* **API Management** | Rate limits, quotas, API keys, response cache, request logging | Only if the API is opened to partners or needs per-client quotas |
+
+### Cost drivers (no prices – check the Azure pricing calculator)
+
+These are the main factors behind the bill. No figures are given here on purpose: prices depend on the region, the tier and usage.
+
+- **Azure OpenAI tokens:** this is usually the largest variable cost. It grows with question volume × (prompt context + answer length). Levers: fewer and shorter passages in the prompt, a smaller model, caching of frequent answers.
+- **Embeddings:** re-embedding the whole corpus costs much more than incremental updates. Embed only new or changed documents (content hash).
+- **Search tier:** AI Search is billed per provisioned unit (replicas × partitions), even when idle. Postgres + pgvector, or Supabase, is cheaper at small scale.
+- **Container Apps:** billed on vCPU/memory-seconds and requests. Scale-to-zero makes idle time almost free but adds cold starts; a minimum of 1 replica removes cold starts but costs money while idle.
+- **Ingestion compute:** Databricks cluster time (DBUs + VMs), or Functions executions. Schedule it, and use job clusters that shut down.
+- **Storage and egress:** usually small for a text corpus; it grows with document versioning.
+- **Monitoring ingestion:** App Insights / Log Analytics bill per GB ingested. Sample traces and set retention.
+- **API Management tier:** a fixed monthly cost for most tiers, which is why it is marked optional.
+
+### Migration steps (from this repo to Azure)
+
+1. **Containers:** push the existing Docker image to Azure Container Registry and run it on Container Apps, unchanged except config from env vars.
+2. **Frontend:** move `frontend/dist` to Static Web Apps and point it at the API (CORS or a linked backend).
+3. **Storage:** move `fetch` output to ADLS/Blob (bronze), with cleaned chunks in silver, instead of baking them into the image.
+4. **Vector store:** add a `VectorStore` implementation for AI Search (or pgvector) next to `ChromaVectorStore`, and index the same chunk IDs and metadata.
+5. **Ingestion job:** schedule `fetch → ingest` as a Databricks Workflow or a timer-triggered Function, and only re-embed documents whose content hash changed.
+6. **Embeddings:** keep the local ONNX model, or switch to Azure OpenAI embeddings and re-index everything (the vector spaces are not compatible).
+7. **Generation:** implement `LLMAnswerer` with Azure OpenAI and keep the relevance filter, plus a post-check that every sentence is supported by a cited passage.
+8. **Security:** Entra ID sign-in, managed identities, secrets in Key Vault, and optionally API Management in front.
+9. **Observability:** App Insights with OpenTelemetry; dashboards for latency, refusal rate and tokens.
+10. **CI/CD:** GitHub Actions with OIDC to Azure. Run `pytest` and `healthcare-rag eval` as a **blocking gate** (fail below the current baseline), then deploy a new revision with traffic splitting.
 
 ## Data / Données
 
