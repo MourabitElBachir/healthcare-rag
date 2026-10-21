@@ -1,4 +1,4 @@
-import { ArrowUpRight, BookOpen, Database, RotateCw, X } from 'lucide-react'
+import { ArrowUpRight, RotateCw, X } from 'lucide-react'
 import type { Health, Source } from '../api'
 import type { Labels, Language } from '../i18n'
 export function SourcePanel({
@@ -26,52 +26,46 @@ export function SourcePanel({
   minimum: number
   margin: number
 }) {
+  const order: Language[] = lang === 'fr' ? ['fr', 'en'] : ['en', 'fr']
   return (
-    <aside className="source-panel" aria-label={t.sources}>
-      <div className="source-top">
-        <span className="eyebrow">{t.collection}</span>
+    <aside className="panel" aria-labelledby="panel-title">
+      <div className="panel-top">
+        <h2 id="panel-title">{t.library}</h2>
         <button className="icon-button" onClick={close} aria-label={t.close}>
-          <X size={18} />
+          <X size={19} />
         </button>
       </div>
-      <h2>{t.library}</h2>
-      <p className="source-intro">{t.libraryText}</p>
-      <div className="source-label">
-        <BookOpen size={14} />
-        {t.documents}
-        <span className="mono">{String(sources.length).padStart(2, '0')}</span>
-      </div>
-      <div className="source-list">
-        {[...sources]
-          .sort((a, b) => Number(b.lang === lang) - Number(a.lang === lang))
-          .map((s, i) => (
-            <a
-              key={s.filename}
-              className="source-item"
-              href={s.url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <span className="source-number mono">{String(i + 1).padStart(2, '0')}</span>
-              <div>
-                <h3>{s.title || s.filename}</h3>
-                <p>{s.publisher}</p>
-                <span className="source-kind mono">
-                  {s.kind.toUpperCase()} ·{' '}
-                  <span className="lang-badge" title={t.langNames[s.lang]}>
-                    {s.lang.toUpperCase()}
-                  </span>
-                </span>
-              </div>
-              <ArrowUpRight size={15} />
-            </a>
-          ))}
-        {sourceFailed && <p className="small muted">{t.sourceError}</p>}
-        {loading && !sources.length && <div className="source-skeleton skeleton" />}
-      </div>
-      <div className="index-card">
-        <div className="index-heading">
-          <Database size={15} />
+      <p className="panel-intro">{t.libraryText}</p>
+      {order.map((l) => {
+        const group = sources.filter((s) => s.lang === l)
+        if (!group.length) return null
+        return (
+          <section key={l} className="source-group" aria-label={t.langNames[l]}>
+            <h3>
+              {t.langNames[l]} <span className="count">{group.length}</span>
+            </h3>
+            <ul>
+              {group.map((s) => (
+                <li key={s.filename}>
+                  <a href={s.url} target="_blank" rel="noopener noreferrer" className="source-link">
+                    <span>
+                      <strong>{s.title || s.filename}</strong>
+                      <span className="muted">
+                        {s.publisher} · {s.kind.toUpperCase()}
+                      </span>
+                    </span>
+                    <ArrowUpRight size={16} aria-hidden="true" />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )
+      })}
+      {sourceFailed && <p className="small muted">{t.sourceError}</p>}
+      {loading && !sources.length && <div className="skeleton tall" />}
+      <section className="index-box" aria-label={t.index}>
+        <div className="index-head">
           <h3>{t.index}</h3>
           <button
             className="icon-button"
@@ -79,14 +73,14 @@ export function SourcePanel({
             onClick={refresh}
             aria-label={t.refresh}
           >
-            <RotateCw size={13} className={loading ? 'spin' : ''} />
+            <RotateCw size={15} className={loading ? 'spin' : ''} />
           </button>
         </div>
-        <p className="index-count">
-          <span className={`status-dot ${failed ? 'offline' : ''}`} />
+        <p>
+          <span className={`dot ${failed ? 'off' : ''}`} aria-hidden="true" />
           {health && !failed ? (
             <>
-              <strong className="mono">{health.chunks}</strong> {t.chunks}
+              <strong>{health.chunks}</strong> {t.chunks}
             </>
           ) : failed ? (
             t.unavailable
@@ -94,23 +88,16 @@ export function SourcePanel({
             t.pending
           )}
         </p>
-        <p className="meta-label">{t.model}</p>
-        <p className="model mono">{health?.model || '—'}</p>
-        <div className="filter-heading">{t.filters}</div>
-        <div className="filter-row">
-          <span>{t.minimum}</span>
-          <span className="mono">{minimum.toFixed(2)}</span>
-        </div>
-        <div className="filter-row">
-          <span>{t.margin}</span>
-          <span className="mono">{margin.toFixed(2)}</span>
-        </div>
-      </div>
-      <p className="endorsement small muted">{t.endorsement}</p>
-      <div className="source-bottom">
-        <span className="status-dot" />
-        {t.searchNote}
-      </div>
+        <dl>
+          <dt>{t.model}</dt>
+          <dd className="break">{health?.model || '—'}</dd>
+          <dt>{t.minimum}</dt>
+          <dd>{minimum.toFixed(2)}</dd>
+          <dt>{t.margin}</dt>
+          <dd>{margin.toFixed(2)}</dd>
+        </dl>
+      </section>
+      <p className="endorsement">{t.endorsement}</p>
     </aside>
   )
 }

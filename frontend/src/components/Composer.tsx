@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react'
-import { ArrowUp, Languages, Plus, SlidersHorizontal } from 'lucide-react'
+import { ArrowUp, RotateCcw } from 'lucide-react'
 import type { Labels, Language } from '../i18n'
 export function Composer({
   t,
   loading,
   ask,
   reset,
+  hasTurns,
   k,
   setK,
   sourceLang,
@@ -15,6 +16,7 @@ export function Composer({
   loading: boolean
   ask: (q: string) => void
   reset: () => void
+  hasTurns: boolean
   k: number
   setK: (k: number) => void
   sourceLang: Language | null
@@ -31,69 +33,66 @@ export function Composer({
   return (
     <div className="composer-wrap">
       <form
-        className="composer panel"
+        className="composer"
         onSubmit={(e) => {
           e.preventDefault()
           send()
         }}
       >
-        <div className="input-row">
-          <label className="sr-only" htmlFor="question">
-            {t.ask}
-          </label>
-          <textarea
-            id="question"
-            ref={input}
-            rows={1}
-            value={text}
-            disabled={loading}
-            placeholder={t.ask}
-            onChange={(e) => {
-              setText(e.target.value)
-              e.target.style.height = 'auto'
-              e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault()
-                send()
-              }
-            }}
-          />
-          <button className="send" disabled={loading || !text.trim()} aria-label={t.send}>
-            <ArrowUp size={21} />
-          </button>
-        </div>
-        <div className="composer-tools">
-          <label className="k-select">
-            <SlidersHorizontal size={13} />
-            {t.topK}
-            <select value={k} disabled={loading} onChange={(e) => setK(Number(e.target.value))}>
-              {Array.from({ length: 10 }, (_, i) => (
-                <option key={i} value={i + 1}>
-                  {i + 1}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="k-select">
-            <Languages size={13} />
-            {t.sourceFilter}
-            <select
-              value={sourceLang ?? 'all'}
-              disabled={loading}
-              onChange={(e) =>
-                setSourceLang(e.target.value === 'all' ? null : (e.target.value as Language))
-              }
-            >
-              <option value="all">{t.allSources}</option>
-              <option value="en">EN · {t.langNames.en}</option>
-              <option value="fr">FR · {t.langNames.fr}</option>
-            </select>
-          </label>
+        <label className="sr-only" htmlFor="question">
+          {t.askLabel}
+        </label>
+        <textarea
+          id="question"
+          ref={input}
+          rows={1}
+          value={text}
+          placeholder={t.ask}
+          onChange={(e) => {
+            setText(e.target.value)
+            e.target.style.height = 'auto'
+            e.target.style.height = `${Math.min(e.target.scrollHeight, 168)}px`
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault()
+              send()
+            }
+          }}
+        />
+        <button className="send" disabled={loading || !text.trim()} aria-label={t.send}>
+          <ArrowUp size={20} aria-hidden="true" />
+        </button>
+      </form>
+      <div className="composer-tools">
+        <label className="select">
+          <span>{t.sourceFilter}</span>
+          <select
+            aria-label={t.sourceFilter}
+            value={sourceLang ?? 'all'}
+            onChange={(e) =>
+              setSourceLang(e.target.value === 'all' ? null : (e.target.value as Language))
+            }
+          >
+            <option value="all">{t.allSources}</option>
+            <option value="en">{t.langNames.en}</option>
+            <option value="fr">{t.langNames.fr}</option>
+          </select>
+        </label>
+        <label className="select">
+          <span>{t.topK}</span>
+          <select aria-label={t.topK} value={k} onChange={(e) => setK(Number(e.target.value))}>
+            {Array.from({ length: 10 }, (_, i) => (
+              <option key={i} value={i + 1}>
+                {i + 1}
+              </option>
+            ))}
+          </select>
+        </label>
+        {hasTurns && (
           <button
             type="button"
-            className="text-button"
+            className="link-button"
             disabled={loading}
             onClick={() => {
               reset()
@@ -101,12 +100,11 @@ export function Composer({
               input.current?.focus()
             }}
           >
-            <Plus size={14} />
+            <RotateCcw size={15} aria-hidden="true" />
             {t.newChat}
           </button>
-          <span className="enter-hint mono">↵ {t.enter}</span>
-        </div>
-      </form>
+        )}
+      </div>
       <p className="composer-note">{t.footer}</p>
     </div>
   )

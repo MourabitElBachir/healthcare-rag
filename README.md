@@ -2,7 +2,7 @@
 
 **🔗 Live demo: <https://medsource-rag.onrender.com>** (free Render instance; the first request after idle can take about a minute) · [Architecture](#architecture-current) · [Azure target design](#scaling-to-production-on-azure-target-design--not-deployed) · [Français](#en-bref-français)
 
-![MedSource RAG – English UI, dark mode](docs/v3_en_desktop_dark_answer.png)
+![MedSource – trusted health answers quoted from official sources (light mode)](docs/v4_hero_light_desktop.png)
 
 > **⚠️ Not medical advice.** Demo / portfolio project: answers are excerpts of public
 > documents that may be outdated. Always consult a health professional.
@@ -100,21 +100,28 @@ API:
 | `GET /api/sources` | the official documents (title, publisher, URL, `lang`) |
 | `POST /api/ask` `{"question": "...", "k": 4, "source_lang": null}` | `refused`, refusal `message` in `en` and `fr`, `citations[]` (rank, source, title, publisher, url, `lang`, page, chunk_index, score, text), `took_ms`. Optional `source_lang`: `"en"` or `"fr"` to cite only sources in that language |
 
-UI features: **English-first**: the UI language follows the browser (`fr*` → French,
-anything else → English) and an FR/EN toggle remembers the choice. Labels are complete in both
-languages; there are suggested questions in each language, a refusal message per language, an
-**EN/FR language badge** on every citation and source, and a cheap **source-language filter**
-(All / EN / FR). Also: chat layout, dark mode (default) and light mode, medical
-disclaimer banner, suggested questions, citation cards (score bar, page/fragment,
-expandable passage, copy, link to the official source), distinct refusal and error
-states, animated search state, sources/index side panel, mobile layout, keyboard and
-screen-reader support (landmarks, `aria-live`, visible focus).
+UI features: a calm, light-by-default interface (sage on warm off-white, muted dark mode),
+set in Atkinson Hyperlegible Next at 17 px. The first screen states the value proposition,
+lists the publishers searched (CDC, FDA, HAS, ANSM, Santé.fr, Santé publique France) and shows
+key figures: source and passage counts and the API round-trip are **read live from the running
+service** at page load; hit@4 (19/21, 90 %) is the result of `python -m healthcare_rag eval -k 4`
+on 2026-10-21, kept in `frontend/src/evalResult.ts`. Answers open with numbered source chips
+(publisher + EN/FR) that jump to the quoted passages; each passage shows a plain-language
+match level, page/fragment, raw similarity, expand, copy and a link to the official page.
+Refusals and errors have their own calm states. The official sources and index settings live
+in a slide-over panel. **English-first**: the UI language follows the browser (`fr*` → French,
+anything else → English) and the EN/FR toggle remembers the choice; there are suggested
+questions and a refusal message per language and a source-language filter (All / EN / FR).
+Accessibility: axe-core (WCAG 2.2 A/AA + best practices) reports 0 violations on the home,
+answer and sources views, light and dark, desktop and 390 px mobile; motion (card rise,
+breathing loader, drawer slide) only runs without `prefers-reduced-motion`; no horizontal
+scroll down to 320 px.
 
-| EN question → French source (cross-lingual) | Light mode | Mobile |
-| --- | --- | --- |
-| ![Cross-lingual](docs/v3_en_desktop_dark_crosslingual.png) | ![Light](docs/v2_desktop_light_answer.png) | ![Mobile](docs/v2_mobile_dark_answer.png) |
+| Answer (light) | Answer (dark) | Mobile | Refusal (FR) |
+| --- | --- | --- | --- |
+| ![Answer, light](docs/v4_answer_light_desktop.png) | ![Answer, dark](docs/v4_answer_dark_desktop.png) | ![Mobile](docs/v4_answer_light_mobile.png) | ![Refusal](docs/v4_refusal_light_desktop_fr.png) |
 
-Light-mode, mobile and refusal screenshots (`docs/v2_*`, `docs/v2_desktop_dark_refusal.png`) predate the English sources.
+Older screenshots (`docs/v2_*`, `docs/v3_*`) show the previous UI.
 
 ### Deploy for free on Render (Docker)
 
