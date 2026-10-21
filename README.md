@@ -106,7 +106,7 @@ their URLs, prepares the ONNX model and embeds the corpus **at build time**, and
 everything with uvicorn on `$PORT` (Render injects it; default **10000**), as uid 1000.
 
 Measured locally with the same steps (no Docker): API peak RAM ≈ **300 MB** after model
-load and queries (fits the 512 MB free instance), ~15 ms per question.
+load and queries (fits the 512 MB free instance), ~5–20 ms per question locally (≈0.2 s round-trip on Render when warm).
 
 1. Fork/push this repository to GitHub.
 2. On [Render](https://render.com): **New → Blueprint**, select the repository; it reads
